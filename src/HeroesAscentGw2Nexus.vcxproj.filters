@@ -39,6 +39,7 @@
     </ClInclude>
     <ClInclude Include="nexus\Nexus.h" />
     <ClInclude Include="mumble\Mumble.h" />
+    <ClInclude Include="RTAPI\RTAPI.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="imgui">

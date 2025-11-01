@@ -18,7 +18,8 @@ HMODULE hSelf = nullptr;
 
 /* Entry Point DLL */
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved) {
-    if (reason == DLL_PROCESS_ATTACH) hSelf = hModule;
+    if (reason == DLL_PROCESS_ATTACH)
+        hSelf = hModule;
     return TRUE;
 }
 
@@ -31,8 +32,8 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
     AddonDef.Version.Minor = 3;
     AddonDef.Version.Build = 0;
     AddonDef.Version.Revision = 0;
-    AddonDef.Author = "Dresna & Co.";
-    AddonDef.Description = "Overlay test - mostra info Mumble e Nexus";
+    AddonDef.Author = "NikeGipple";
+    AddonDef.Description = "Heroes Ascent Overlay Test";
     AddonDef.Load = AddonLoad;
     AddonDef.Unload = AddonUnload;
     AddonDef.Flags = EAddonFlags_None;
@@ -46,23 +47,20 @@ void AddonLoad(AddonAPI* aApi) {
     ImGui::SetCurrentContext((ImGuiContext*)APIDefs->ImguiContext);
     ImGui::SetAllocatorFunctions(
         (void* (*)(size_t, void*))APIDefs->ImguiMalloc,
-        (void(*)(void*, void*))APIDefs->ImguiFree);
+        (void(*)(void*, void*))APIDefs->ImguiFree
+    );
 
     MumbleLink = (Mumble::Data*)APIDefs->DataLink.Get("DL_MUMBLE_LINK");
     NexusLink = (NexusLinkData*)APIDefs->DataLink.Get("DL_NEXUS_LINK");
 
     // Registriamo il renderer subito
     APIDefs->Renderer.Register(ERenderType_Render, AddonRender);
-    APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Renderer registrato immediatamente.");
-
-    APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "AddonLoad completato - pronto a mostrare overlay.");
 }
 
 /* Addon Unload */
 void AddonUnload() {
     if (APIDefs)
         APIDefs->Renderer.Deregister(AddonRender);
-    APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Addon scaricato correttamente.");
 }
 
 /* Render principale */
@@ -74,7 +72,8 @@ void AddonRender() {
     ImGui::SetNextWindowSize(ImVec2(500, 260), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("HeroesAscent Overlay", nullptr,
-        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_AlwaysAutoResize |
         ImGuiWindowFlags_NoSavedSettings);
 
     std::string playerName = "Nessun nome rilevato";
@@ -104,6 +103,7 @@ void AddonRender() {
     ImGui::Separator();
     ImGui::Text("Nome del personaggio: %s", playerName.c_str());
     ImGui::Text("Movimento: %s", (NexusLink && NexusLink->IsMoving) ? "In movimento" : "Fermo");
+
 
     if (MumbleLink) {
         const float* pos = reinterpret_cast<const float*>(&MumbleLink->AvatarPosition);

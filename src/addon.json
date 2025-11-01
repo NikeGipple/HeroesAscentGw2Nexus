@@ -1,0 +1,7 @@
+{
+  "name": "Heroes Ascent Gw2 Nexus",
+  "description": "Automated tournament rule enforcement for Heroes' Ascent.",
+  "version": "0.1.0",
+  "author": "YourName",
+  "dll": "HeroesAscentGw2Nexus.dll"
+}

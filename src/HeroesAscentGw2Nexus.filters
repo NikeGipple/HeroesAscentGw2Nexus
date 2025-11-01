@@ -70,7 +70,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="GW2Nexus-AddonTemplate.rc">
+    <ResourceCompile Include="HeroesAscentGw2Nexus.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>

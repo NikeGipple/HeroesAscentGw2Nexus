@@ -1,0 +1,11 @@
+{
+  "ui.character": "Character",
+  "ui.status": "Status",
+  "ui.map": "Map",
+  "ui.position": "Position",
+  "ui.not_available": "RTAPI not available or inactive...",
+  "ui.state.normal": "NORMAL",
+  "ui.state.downed": "DOWNED",
+  "ui.state.dead": "DEAD",
+  "ui.state.combat": "IN COMBAT"
+}

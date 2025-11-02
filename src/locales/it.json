@@ -1,0 +1,11 @@
+{
+  "ui.character": "Personaggio",
+  "ui.status": "Stato",
+  "ui.map": "Mappa",
+  "ui.position": "Posizione",
+  "ui.not_available": "RTAPI non disponibile o non attiva...",
+  "ui.state.normal": "NORMALE",
+  "ui.state.downed": "A TERRA (DOWNED)",
+  "ui.state.dead": "MORTO",
+  "ui.state.combat": "IN COMBATTIMENTO"
+}

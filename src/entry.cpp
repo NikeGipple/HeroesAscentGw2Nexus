@@ -1,5 +1,8 @@
 ﻿#include <Windows.h>
 #include <string>
+#include <fstream>
+#include <sstream>
+#include <map>
 #include "nexus/Nexus.h"
 #include "mumble/Mumble.h"
 #include "RTAPI/RTAPI.h"
@@ -10,9 +13,68 @@ AddonDefinition AddonDef = {};
 AddonAPI* APIDefs = nullptr;
 Mumble::Data* MumbleLink = nullptr;
 RealTimeData* RTAPIData = nullptr;
+HMODULE hSelf = nullptr;
+
+// Lingue caricate
+std::map<std::string, std::string> Translations;
+std::string CurrentLang = "en";
+
+/* === Utility: Caricamento file JSON (semplice parser minimal) === */
+void LoadLanguage(const std::string& lang) {
+    Translations.clear();
+
+    // Ottieni percorso base della DLL
+    char dllPath[MAX_PATH];
+    GetModuleFileNameA(hSelf, dllPath, MAX_PATH);
+    std::string basePath = std::string(dllPath);
+    basePath = basePath.substr(0, basePath.find_last_of("\\/")); // rimuove nome DLL
+
+    // Percorso completo verso il file JSON
+    std::string path = basePath + "\\HeroesAscentGw2Nexus\\locales\\" + lang + ".json";
+
+    if (APIDefs)
+        APIDefs->Log(ELogLevel_INFO, "HeroesAscent", ("Loading language file: " + path).c_str());
+
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_WARNING, "HeroesAscent", ("Could not find language file: " + path).c_str());
+        return;
+    }
+
+    // Parser molto semplice (chiave/valore)
+    std::string line;
+    while (std::getline(file, line)) {
+        size_t keyStart = line.find('"');
+        if (keyStart == std::string::npos) continue;
+        size_t keyEnd = line.find('"', keyStart + 1);
+        if (keyEnd == std::string::npos) continue;
+
+        size_t valStart = line.find('"', keyEnd + 1);
+        if (valStart == std::string::npos) continue;
+        size_t valEnd = line.find('"', valStart + 1);
+        if (valEnd == std::string::npos) continue;
+
+        std::string key = line.substr(keyStart + 1, keyEnd - keyStart - 1);
+        std::string val = line.substr(valStart + 1, valEnd - valStart - 1);
+        Translations[key] = val;
+    }
+    file.close();
+
+    if (APIDefs)
+        APIDefs->Log(ELogLevel_INFO, "HeroesAscent", ("Language loaded: " + lang).c_str());
+}
+
+/* === Funzione helper === */
+const char* T(const std::string& key) {
+    if (Translations.find(key) != Translations.end())
+        return Translations[key].c_str();
+    return key.c_str();
+}
 
 /* === Entry Point DLL === */
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved) {
+    if (reason == DLL_PROCESS_ATTACH) hSelf = hModule;
     return TRUE;
 }
 
@@ -22,11 +84,11 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
     AddonDef.APIVersion = NEXUS_API_VERSION;
     AddonDef.Name = "HeroesAscentGw2Nexus";
     AddonDef.Version.Major = 2;
-    AddonDef.Version.Minor = 4;
+    AddonDef.Version.Minor = 5;
     AddonDef.Version.Build = 0;
     AddonDef.Version.Revision = 0;
     AddonDef.Author = "NikeGipple";
-    AddonDef.Description = "Real-time downed state detection via RTAPI";
+    AddonDef.Description = "HeroesAscent Assistant with multilingual support";
     AddonDef.Flags = EAddonFlags_None;
 
     /* === Addon Load === */
@@ -43,36 +105,44 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
         MumbleLink = (Mumble::Data*)aApi->DataLink.Get("DL_MUMBLE_LINK");
         RTAPIData = (RealTimeData*)aApi->DataLink.Get(DL_RTAPI);
 
-        // Log iniziale
-        aApi->Log(ELogLevel_INFO, "HeroesAscent", "Addon caricato: RTAPI connesso, overlay attivo.");
+        // Carica lingua predefinita
+        LoadLanguage(CurrentLang);
 
-        // === Renderer principale ===
+        aApi->Log(ELogLevel_INFO, "HeroesAscent", "Addon loaded with multilingual support.");
+
+        // === Renderer ===
         aApi->Renderer.Register(ERenderType_Render, []() {
-            if (!APIDefs)
-                return;
-
-            // Se RTAPI non è pronto, prova a ricollegarlo
+            if (!APIDefs) return;
             if (!RTAPIData)
                 RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
 
             ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(460, 300), ImGuiCond_FirstUseEver);
-
+            ImGui::SetNextWindowSize(ImVec2(480, 320), ImGuiCond_FirstUseEver);
             ImGui::Begin("HeroesAscent Assistant", nullptr,
                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 
-            // Gestione ridimensionamento manuale (limite minimo)
-            ImVec2 winSize = ImGui::GetWindowSize();
-            float minW = 300.0f;
-            float minH = 150.0f;
-            if (winSize.x < minW || winSize.y < minH)
-                ImGui::SetWindowSize(ImVec2(
-                    winSize.x < minW ? minW : winSize.x,
-                    winSize.y < minH ? minH : winSize.y
-                ));
+            // === Selettore lingua ===
+            ImGui::Text("%s:", "Language");
+            ImGui::SameLine();
+            static const char* langs[] = { "English", "Italiano" };
+            static int currentLang = 0;
+            if (ImGui::BeginCombo("##lang", langs[currentLang])) {
+                for (int i = 0; i < IM_ARRAYSIZE(langs); i++) {
+                    bool selected = (currentLang == i);
+                    if (ImGui::Selectable(langs[i], selected)) {
+                        currentLang = i;
+                        CurrentLang = (i == 0) ? "en" : "it";
+                        LoadLanguage(CurrentLang);
+                    }
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::Separator();
 
             // === Nome personaggio ===
-            std::string playerName = "Nessun nome rilevato";
+            std::string playerName = "N/A";
             if (RTAPIData && strlen(RTAPIData->CharacterName) > 0)
                 playerName = RTAPIData->CharacterName;
             else if (MumbleLink && MumbleLink->Identity && wcslen(MumbleLink->Identity) > 0) {
@@ -87,62 +157,54 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 }
             }
 
-            ImGui::Text("Personaggio: %s", playerName.c_str());
+            ImGui::Text("%s: %s", T("ui.character"), playerName.c_str());
             ImGui::Separator();
 
-            // === Stato in tempo reale (RTAPI) ===
+            // === Stato ===
             if (RTAPIData && RTAPIData->GameBuild != 0) {
                 uint32_t cs = RTAPIData->CharacterState;
                 bool isAlive = cs & CS_IsAlive;
                 bool isDowned = cs & CS_IsDowned;
                 bool inCombat = cs & CS_IsInCombat;
-                bool isSwimming = cs & CS_IsSwimming;
-                bool isUnderwater = cs & CS_IsUnderwater;
-                bool isGliding = cs & CS_IsGliding;
-                bool isFlying = cs & CS_IsFlying;
 
-                const char* stato = "Sconosciuto";
+                const char* stato = T("ui.state.normal");
                 ImVec4 color = ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
 
                 if (isDowned && !isAlive) {
-                    stato = "MORTO";
+                    stato = T("ui.state.dead");
                     color = ImVec4(1, 0.3f, 0.3f, 1);
                 }
                 else if (isDowned) {
-                    stato = "A TERRA (DOWNED)";
+                    stato = T("ui.state.downed");
                     color = ImVec4(1, 0.6f, 0.1f, 1);
                 }
                 else if (inCombat) {
-                    stato = "IN COMBATTIMENTO";
+                    stato = T("ui.state.combat");
                     color = ImVec4(0.3f, 1, 0.3f, 1);
                 }
-                else {
-                    stato = "NORMALE";
-                }
 
-                ImGui::TextColored(color, "Stato: %s", stato);
+                ImGui::TextColored(color, "%s: %s", T("ui.status"), stato);
 
-                // === Dati extra ===
                 ImGui::Separator();
-                ImGui::Text("Mappa: %u | Tipo: %u", RTAPIData->MapID, RTAPIData->MapType);
-                ImGui::Text("Posizione: X %.2f | Y %.2f | Z %.2f",
+                ImGui::Text("%s: %u | Type: %u", T("ui.map"), RTAPIData->MapID, RTAPIData->MapType);
+                ImGui::Text("%s: X %.2f | Y %.2f | Z %.2f",
+                    T("ui.position"),
                     RTAPIData->CharacterPosition[0],
                     RTAPIData->CharacterPosition[1],
                     RTAPIData->CharacterPosition[2]);
             }
             else {
-                ImGui::TextColored(ImVec4(1, 1, 0, 1), "RTAPI non disponibile o non attiva...");
+                ImGui::TextColored(ImVec4(1, 0.5f, 0.2f, 1), "%s", T("ui.not_available"));
             }
 
             ImGui::End();
             });
         };
 
-    /* === Addon Unload === */
+    /* === Unload === */
     AddonDef.Unload = []() {
-        if (APIDefs) {
-            APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Addon scaricato correttamente.");
-        }
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Addon unloaded.");
         };
 
     return &AddonDef;

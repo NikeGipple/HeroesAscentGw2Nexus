@@ -3,10 +3,14 @@
 #include <fstream>
 #include <sstream>
 #include <map>
+#include <vector>
+#include <winhttp.h>
 #include "nexus/Nexus.h"
 #include "mumble/Mumble.h"
 #include "RTAPI/RTAPI.h"
 #include "imgui/imgui.h"
+
+#pragma comment(lib, "winhttp.lib")
 
 /* === Globali === */
 AddonDefinition AddonDef = {};
@@ -19,17 +23,19 @@ HMODULE hSelf = nullptr;
 std::map<std::string, std::string> Translations;
 std::string CurrentLang = "en";
 
-/* === Utility: Caricamento file JSON (semplice parser minimal) === */
+// Stato server
+std::string ServerStatus = "Checking...";
+ImVec4 ServerColor = ImVec4(1, 1, 0, 1);
+
+/* === Utility: Caricamento file JSON (parser minimale) === */
 void LoadLanguage(const std::string& lang) {
     Translations.clear();
 
-    // Ottieni percorso base della DLL
     char dllPath[MAX_PATH];
     GetModuleFileNameA(hSelf, dllPath, MAX_PATH);
     std::string basePath = std::string(dllPath);
-    basePath = basePath.substr(0, basePath.find_last_of("\\/")); // rimuove nome DLL
+    basePath = basePath.substr(0, basePath.find_last_of("\\/"));
 
-    // Percorso completo verso il file JSON
     std::string path = basePath + "\\HeroesAscentGw2Nexus\\locales\\" + lang + ".json";
 
     if (APIDefs)
@@ -42,7 +48,6 @@ void LoadLanguage(const std::string& lang) {
         return;
     }
 
-    // Parser molto semplice (chiave/valore)
     std::string line;
     while (std::getline(file, line)) {
         size_t keyStart = line.find('"');
@@ -72,6 +77,56 @@ const char* T(const std::string& key) {
     return key.c_str();
 }
 
+/* === Controllo Server === */
+std::string CheckServerStatus() {
+    std::string result = "unknown";
+
+    HINTERNET hSession = WinHttpOpen(L"HeroesAscent/1.0",
+        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+        WINHTTP_NO_PROXY_NAME,
+        WINHTTP_NO_PROXY_BYPASS, 0);
+
+    if (hSession) {
+        HINTERNET hConnect = WinHttpConnect(hSession, L"heroesascentserver.onrender.com",
+            INTERNET_DEFAULT_HTTPS_PORT, 0);
+
+        if (hConnect) {
+            HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET",
+                L"/", NULL, WINHTTP_NO_REFERER,
+                WINHTTP_DEFAULT_ACCEPT_TYPES,
+                WINHTTP_FLAG_SECURE);
+
+            if (hRequest && WinHttpSendRequest(hRequest,
+                WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+                WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
+
+                if (WinHttpReceiveResponse(hRequest, NULL)) {
+                    DWORD dwSize = 0;
+                    std::string response;
+
+                    do {
+                        WinHttpQueryDataAvailable(hRequest, &dwSize);
+                        if (dwSize == 0) break;
+
+                        std::vector<char> buffer(dwSize + 1);
+                        DWORD dwDownloaded = 0;
+                        WinHttpReadData(hRequest, buffer.data(), dwSize, &dwDownloaded);
+                        buffer[dwDownloaded] = '\0';
+                        response += buffer.data();
+                    } while (dwSize > 0);
+
+                    result = response;
+                }
+                WinHttpCloseHandle(hRequest);
+            }
+            WinHttpCloseHandle(hConnect);
+        }
+        WinHttpCloseHandle(hSession);
+    }
+
+    return result;
+}
+
 /* === Entry Point DLL === */
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved) {
     if (reason == DLL_PROCESS_ATTACH) hSelf = hModule;
@@ -88,38 +143,49 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
     AddonDef.Version.Build = 0;
     AddonDef.Version.Revision = 0;
     AddonDef.Author = "NikeGipple";
-    AddonDef.Description = "HeroesAscent Assistant with multilingual support";
+    AddonDef.Description = "HeroesAscent Assistant with multilingual and server connection support";
     AddonDef.Flags = EAddonFlags_None;
 
-    /* === Addon Load === */
+    /* === Load === */
     AddonDef.Load = [](AddonAPI* aApi) {
         APIDefs = aApi;
 
-        // Setup ImGui
         ImGui::SetCurrentContext((ImGuiContext*)aApi->ImguiContext);
         ImGui::SetAllocatorFunctions(
             (void* (*)(size_t, void*))aApi->ImguiMalloc,
             (void(*)(void*, void*))aApi->ImguiFree);
 
-        // Collega i DataLink
         MumbleLink = (Mumble::Data*)aApi->DataLink.Get("DL_MUMBLE_LINK");
         RTAPIData = (RealTimeData*)aApi->DataLink.Get(DL_RTAPI);
 
-        // Carica lingua predefinita
         LoadLanguage(CurrentLang);
 
-        aApi->Log(ELogLevel_INFO, "HeroesAscent", "Addon loaded with multilingual support.");
+        // Controlla server
+        std::string response = CheckServerStatus();
+        aApi->Log(ELogLevel_INFO, "HeroesAscent", ("Server response: " + response).c_str());
 
-        // === Renderer ===
+        if (response.find("\"status\":\"ok\"") != std::string::npos) {
+            ServerStatus = "Server online";
+            ServerColor = ImVec4(0.3f, 1, 0.3f, 1);
+        }
+        else {
+            ServerStatus = "Server offline";
+            ServerColor = ImVec4(1, 0.3f, 0.3f, 1);
+        }
+
         aApi->Renderer.Register(ERenderType_Render, []() {
             if (!APIDefs) return;
             if (!RTAPIData)
                 RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
 
             ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(480, 320), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(480, 340), ImGuiCond_FirstUseEver);
             ImGui::Begin("HeroesAscent Assistant", nullptr,
                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+
+            // === Server Status ===
+            ImGui::TextColored(ServerColor, "%s", ServerStatus.c_str());
+            ImGui::Separator();
 
             // === Selettore lingua ===
             ImGui::Text("%s:", "Language");

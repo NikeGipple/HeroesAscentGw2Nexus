@@ -1,0 +1,37 @@
+{
+  "RULE_FOOD_001": {
+    "category": "Gameplay",
+    "title": "Forbidden Food or Enhancement",
+    "description": "The player has consumed food or enhancement items, which are not allowed during the competition."
+  },
+  "RULE_MOUNT_002": {
+    "category": "Movement",
+    "title": "Mount Usage",
+    "description": "The player used a mount, which is explicitly forbidden by the event rules."
+  },
+  "RULE_GROUP_003": {
+    "category": "Social",
+    "title": "Party or Squad Participation",
+    "description": "The player joined or interacted with a party or squad, violating the solo play requirement."
+  },
+  "RULE_HEAL_004": {
+    "category": "Combat",
+    "title": "Healing Skill Usage",
+    "description": "The player used or equipped healing skills, which are not allowed during the competition."
+  },
+  "RULE_BUFF_005": {
+    "category": "Combat",
+    "title": "Experience Boost Detected",
+    "description": "An experience booster or related effect was detected on the character."
+  },
+  "RULE_GEAR_006": {
+    "category": "Equipment",
+    "title": "Invalid Equipment",
+    "description": "The player equipped armor or accessories that are not permitted under competition rules."
+  },
+  "RULE_MISC_999": {
+    "category": "General",
+    "title": "Unspecified Violation",
+    "description": "A rule violation was detected but could not be specifically categorized."
+  }
+}

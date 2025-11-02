@@ -4,6 +4,9 @@
 #include <sstream>
 #include <map>
 #include <vector>
+#include <thread>
+#include <cmath>
+#include <algorithm>
 #include <winhttp.h>
 #include "nexus/Nexus.h"
 #include "mumble/Mumble.h"
@@ -20,14 +23,36 @@ RealTimeData* RTAPIData = nullptr;
 HMODULE hSelf = nullptr;
 
 // Lingue caricate
-std::map<std::string, std::string> Translations;
+std::map<std::string, std::string> Translations; // UI
+std::map<std::string, std::pair<std::string, std::string>> Violations; // codice → {titolo, descrizione}
 std::string CurrentLang = "en";
 
 // Stato server
-std::string ServerStatus = "Checking...";
+std::string ServerStatus;
 ImVec4 ServerColor = ImVec4(1, 1, 0, 1);
+std::string LastViolationTitle;
+std::string LastViolationDesc;
+std::string LastViolationCode; // codice violazione attuale
 
-/* === Utility: Caricamento file JSON (parser minimale) === */
+/* === Snapshot dati giocatore === */
+struct PlayerSnapshot {
+    std::string Name;
+    uint32_t MapID = 0;
+    uint32_t CharacterState = 0;
+    float Position[3] = { 0 };
+};
+PlayerSnapshot LastSnapshot;
+
+/* === Utility: Lettura file === */
+std::string ReadFileToString(const std::string& path) {
+    std::ifstream f(path);
+    if (!f.is_open()) return "";
+    std::stringstream buffer;
+    buffer << f.rdbuf();
+    return buffer.str();
+}
+
+/* === Caricamento lingua interfaccia === */
 void LoadLanguage(const std::string& lang) {
     Translations.clear();
 
@@ -38,13 +63,10 @@ void LoadLanguage(const std::string& lang) {
 
     std::string path = basePath + "\\HeroesAscentGw2Nexus\\locales\\" + lang + ".json";
 
-    if (APIDefs)
-        APIDefs->Log(ELogLevel_INFO, "HeroesAscent", ("Loading language file: " + path).c_str());
-
     std::ifstream file(path);
     if (!file.is_open()) {
         if (APIDefs)
-            APIDefs->Log(ELogLevel_WARNING, "HeroesAscent", ("Could not find language file: " + path).c_str());
+            APIDefs->Log(ELogLevel_WARNING, "HeroesAscent", ("Missing language file: " + path).c_str());
         return;
     }
 
@@ -65,21 +87,83 @@ void LoadLanguage(const std::string& lang) {
         Translations[key] = val;
     }
     file.close();
-
-    if (APIDefs)
-        APIDefs->Log(ELogLevel_INFO, "HeroesAscent", ("Language loaded: " + lang).c_str());
 }
 
-/* === Funzione helper === */
+/* === Caricamento violazioni === */
+void LoadViolations(const std::string& lang) {
+    Violations.clear();
+
+    char dllPath[MAX_PATH];
+    GetModuleFileNameA(hSelf, dllPath, MAX_PATH);
+    std::string basePath = std::string(dllPath);
+    basePath = basePath.substr(0, basePath.find_last_of("\\/"));
+
+    std::string path = basePath + "\\HeroesAscentGw2Nexus\\violations\\" + lang + ".json";
+
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_WARNING, "HeroesAscent", ("Missing violations file: " + path).c_str());
+        return;
+    }
+
+    std::string line, code, title, description;
+    while (std::getline(file, line)) {
+        size_t codeStart = line.find('"');
+        if (codeStart == std::string::npos) continue;
+        size_t codeEnd = line.find('"', codeStart + 1);
+        if (codeEnd == std::string::npos) continue;
+        std::string token = line.substr(codeStart + 1, codeEnd - codeStart - 1);
+
+        if (token.rfind("RULE_", 0) == 0) {
+            code = token;
+        }
+        else if (line.find("\"title\"") != std::string::npos) {
+            size_t valStart = line.find('"', line.find(':') + 1);
+            size_t valEnd = line.find_last_of('"');
+            title = line.substr(valStart + 1, valEnd - valStart - 1);
+        }
+        else if (line.find("\"description\"") != std::string::npos) {
+            size_t valStart = line.find('"', line.find(':') + 1);
+            size_t valEnd = line.find_last_of('"');
+            description = line.substr(valStart + 1, valEnd - valStart - 1);
+            if (!code.empty()) {
+                Violations[code] = { title, description };
+                code.clear();
+                title.clear();
+                description.clear();
+            }
+        }
+    }
+
+    file.close();
+}
+
+/* === Traduttore === */
 const char* T(const std::string& key) {
     if (Translations.find(key) != Translations.end())
         return Translations[key].c_str();
     return key.c_str();
 }
 
-/* === Controllo Server === */
-std::string CheckServerStatus() {
-    std::string result = "unknown";
+/* === Controllo cambiamenti === */
+bool HasChanged(const RealTimeData* data) {
+    if (!data) return false;
+    if (data->MapID != LastSnapshot.MapID) return true;
+    if (data->CharacterState != LastSnapshot.CharacterState) return true;
+    return false;
+}
+
+/* === Invio aggiornamento al server === */
+void SendPlayerUpdate() {
+    if (!RTAPIData) return;
+
+    std::ostringstream payload;
+    payload << "{"
+        << "\"name\":\"" << RTAPIData->CharacterName << "\","
+        << "\"map\":" << RTAPIData->MapID << ","
+        << "\"state\":" << RTAPIData->CharacterState
+        << "}";
 
     HINTERNET hSession = WinHttpOpen(L"HeroesAscent/1.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
@@ -91,23 +175,25 @@ std::string CheckServerStatus() {
             INTERNET_DEFAULT_HTTPS_PORT, 0);
 
         if (hConnect) {
-            HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET",
-                L"/", NULL, WINHTTP_NO_REFERER,
-                WINHTTP_DEFAULT_ACCEPT_TYPES,
-                WINHTTP_FLAG_SECURE);
+            HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"POST",
+                L"/update", NULL, WINHTTP_NO_REFERER,
+                WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
 
-            if (hRequest && WinHttpSendRequest(hRequest,
-                WINHTTP_NO_ADDITIONAL_HEADERS, 0,
-                WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
+            if (hRequest) {
+                std::wstring headers = L"Content-Type: application/json\r\n";
+                std::string body = payload.str();
 
-                if (WinHttpReceiveResponse(hRequest, NULL)) {
+                BOOL bResults = WinHttpSendRequest(hRequest,
+                    headers.c_str(), -1L,
+                    (LPVOID)body.c_str(), body.length(),
+                    body.length(), 0);
+
+                if (bResults && WinHttpReceiveResponse(hRequest, NULL)) {
                     DWORD dwSize = 0;
                     std::string response;
-
                     do {
                         WinHttpQueryDataAvailable(hRequest, &dwSize);
                         if (dwSize == 0) break;
-
                         std::vector<char> buffer(dwSize + 1);
                         DWORD dwDownloaded = 0;
                         WinHttpReadData(hRequest, buffer.data(), dwSize, &dwDownloaded);
@@ -115,7 +201,40 @@ std::string CheckServerStatus() {
                         response += buffer.data();
                     } while (dwSize > 0);
 
-                    result = response;
+                    // Pulisce la risposta
+                    response.erase(std::remove_if(response.begin(), response.end(),
+                        [](unsigned char c) { return c == '\n' || c == '\r' || c == ' '; }),
+                        response.end());
+
+                    // Analisi risposta
+                    if (response.find("\"rules_valid\":false") != std::string::npos) {
+                        ServerStatus = T("ui.violation_detected");
+                        ServerColor = ImVec4(1, 0.4f, 0.4f, 1);
+
+                        size_t codeStart = response.find("\"violation_code\":\"");
+                        if (codeStart != std::string::npos) {
+                            codeStart += 18;
+                            size_t codeEnd = response.find('"', codeStart);
+                            std::string code = response.substr(codeStart, codeEnd - codeStart);
+
+                            LastViolationCode = code;
+                            if (Violations.find(code) != Violations.end()) {
+                                LastViolationTitle = Violations[code].first;
+                                LastViolationDesc = Violations[code].second;
+                            }
+                            else {
+                                LastViolationTitle = code;
+                                LastViolationDesc = T("ui.unknown_violation");
+                            }
+                        }
+                    }
+                    else {
+                        ServerStatus = T("ui.rules_respected");
+                        ServerColor = ImVec4(0.3f, 1, 0.3f, 1);
+                        LastViolationTitle.clear();
+                        LastViolationDesc.clear();
+                        LastViolationCode.clear();
+                    }
                 }
                 WinHttpCloseHandle(hRequest);
             }
@@ -123,8 +242,6 @@ std::string CheckServerStatus() {
         }
         WinHttpCloseHandle(hSession);
     }
-
-    return result;
 }
 
 /* === Entry Point DLL === */
@@ -138,15 +255,12 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
     AddonDef.Signature = -987654321;
     AddonDef.APIVersion = NEXUS_API_VERSION;
     AddonDef.Name = "HeroesAscentGw2Nexus";
-    AddonDef.Version.Major = 2;
-    AddonDef.Version.Minor = 5;
-    AddonDef.Version.Build = 0;
-    AddonDef.Version.Revision = 0;
+    AddonDef.Version.Major = 3;
+    AddonDef.Version.Minor = 6;
     AddonDef.Author = "NikeGipple";
-    AddonDef.Description = "HeroesAscent Assistant with multilingual and server connection support";
+    AddonDef.Description = "HeroesAscent Assistant with multilingual violations and UI";
     AddonDef.Flags = EAddonFlags_None;
 
-    /* === Load === */
     AddonDef.Load = [](AddonAPI* aApi) {
         APIDefs = aApi;
 
@@ -159,39 +273,35 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
         RTAPIData = (RealTimeData*)aApi->DataLink.Get(DL_RTAPI);
 
         LoadLanguage(CurrentLang);
-
-        // Controlla server
-        std::string response = CheckServerStatus();
-        aApi->Log(ELogLevel_INFO, "HeroesAscent", ("Server response: " + response).c_str());
-
-        if (response.find("\"status\":\"ok\"") != std::string::npos) {
-            ServerStatus = "Server online";
-            ServerColor = ImVec4(0.3f, 1, 0.3f, 1);
-        }
-        else {
-            ServerStatus = "Server offline";
-            ServerColor = ImVec4(1, 0.3f, 0.3f, 1);
-        }
+        LoadViolations(CurrentLang);
+        ServerStatus = T("ui.checking_server");
 
         aApi->Renderer.Register(ERenderType_Render, []() {
             if (!APIDefs) return;
             if (!RTAPIData)
                 RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
 
+            static uint64_t lastCheck = 0;
+            uint64_t now = GetTickCount64();
+            if (now - lastCheck > 200) {
+                if (HasChanged(RTAPIData)) {
+                    LastSnapshot.MapID = RTAPIData->MapID;
+                    LastSnapshot.CharacterState = RTAPIData->CharacterState;
+                    std::thread(SendPlayerUpdate).detach();
+                }
+                lastCheck = now;
+            }
+
             ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(480, 340), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(500, 420), ImGuiCond_FirstUseEver);
             ImGui::Begin("HeroesAscent Assistant", nullptr,
                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 
-            // === Server Status ===
-            ImGui::TextColored(ServerColor, "%s", ServerStatus.c_str());
-            ImGui::Separator();
-
-            // === Selettore lingua ===
+            // === Selettore lingua (ora in alto) ===
             ImGui::Text("%s:", "Language");
             ImGui::SameLine();
             static const char* langs[] = { "English", "Italiano" };
-            static int currentLang = 0;
+            static int currentLang = (CurrentLang == "it") ? 1 : 0;
             if (ImGui::BeginCombo("##lang", langs[currentLang])) {
                 for (int i = 0; i < IM_ARRAYSIZE(langs); i++) {
                     bool selected = (currentLang == i);
@@ -199,6 +309,19 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         currentLang = i;
                         CurrentLang = (i == 0) ? "en" : "it";
                         LoadLanguage(CurrentLang);
+                        LoadViolations(CurrentLang);
+
+                        if (!LastViolationCode.empty() && Violations.find(LastViolationCode) != Violations.end()) {
+                            LastViolationTitle = Violations[LastViolationCode].first;
+                            LastViolationDesc = Violations[LastViolationCode].second;
+                        }
+
+                        if (ServerColor.x == 1 && ServerColor.y == 0.4f)
+                            ServerStatus = T("ui.violation_detected");
+                        else if (ServerColor.x == 0.3f && ServerColor.y == 1)
+                            ServerStatus = T("ui.rules_respected");
+                        else
+                            ServerStatus = T("ui.checking_server");
                     }
                     if (selected) ImGui::SetItemDefaultFocus();
                 }
@@ -207,26 +330,22 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
             ImGui::Separator();
 
-            // === Nome personaggio ===
+            // === Stato server e violazioni ===
+            ImGui::TextColored(ServerColor, "%s", ServerStatus.c_str());
+            if (!LastViolationTitle.empty()) {
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1, 0.3f, 0.3f, 1), "%s", LastViolationTitle.c_str());
+                ImGui::TextWrapped("%s", LastViolationDesc.c_str());
+            }
+
+            ImGui::Separator();
+
             std::string playerName = "N/A";
             if (RTAPIData && strlen(RTAPIData->CharacterName) > 0)
                 playerName = RTAPIData->CharacterName;
-            else if (MumbleLink && MumbleLink->Identity && wcslen(MumbleLink->Identity) > 0) {
-                char jsonUtf8[2048];
-                WideCharToMultiByte(CP_UTF8, 0, MumbleLink->Identity, -1,
-                    jsonUtf8, sizeof(jsonUtf8), nullptr, nullptr);
-                const char* start = strstr(jsonUtf8, "\"name\":\"");
-                if (start) {
-                    start += 8;
-                    const char* end = strchr(start, '"');
-                    if (end) playerName.assign(start, end - start);
-                }
-            }
 
             ImGui::Text("%s: %s", T("ui.character"), playerName.c_str());
-            ImGui::Separator();
 
-            // === Stato ===
             if (RTAPIData && RTAPIData->GameBuild != 0) {
                 uint32_t cs = RTAPIData->CharacterState;
                 bool isAlive = cs & CS_IsAlive;
@@ -249,12 +368,10 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     color = ImVec4(0.3f, 1, 0.3f, 1);
                 }
 
-                ImGui::TextColored(color, "%s: %s", T("ui.status"), stato);
-
                 ImGui::Separator();
+                ImGui::TextColored(color, "%s: %s", T("ui.status"), stato);
                 ImGui::Text("%s: %u | Type: %u", T("ui.map"), RTAPIData->MapID, RTAPIData->MapType);
-                ImGui::Text("%s: X %.2f | Y %.2f | Z %.2f",
-                    T("ui.position"),
+                ImGui::Text("%s: %.2f, %.2f, %.2f", T("ui.position"),
                     RTAPIData->CharacterPosition[0],
                     RTAPIData->CharacterPosition[1],
                     RTAPIData->CharacterPosition[2]);
@@ -267,7 +384,6 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             });
         };
 
-    /* === Unload === */
     AddonDef.Unload = []() {
         if (APIDefs)
             APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Addon unloaded.");

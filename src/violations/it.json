@@ -1,0 +1,37 @@
+{
+  "RULE_FOOD_001": {
+    "category": "Gioco",
+    "title": "Cibo o Potenziamento Vietato",
+    "description": "Il giocatore ha consumato cibo o potenziamenti non consentiti durante la competizione."
+  },
+  "RULE_MOUNT_002": {
+    "category": "Movimento",
+    "title": "Uso di Cavalcatura",
+    "description": "Il giocatore ha utilizzato una cavalcatura, vietata dal regolamento dell'evento."
+  },
+  "RULE_GROUP_003": {
+    "category": "Sociale",
+    "title": "Partecipazione a Party o Squad",
+    "description": "Il giocatore si è unito o ha interagito con un gruppo, violando la regola del gioco in solitaria."
+  },
+  "RULE_HEAL_004": {
+    "category": "Combattimento",
+    "title": "Uso di Abilità di Cura",
+    "description": "Il giocatore ha utilizzato o equipaggiato abilità di cura, non consentite durante la competizione."
+  },
+  "RULE_BUFF_005": {
+    "category": "Combattimento",
+    "title": "Bonus Esperienza Rilevato",
+    "description": "È stato rilevato un booster di esperienza o un effetto simile sul personaggio."
+  },
+  "RULE_GEAR_006": {
+    "category": "Equipaggiamento",
+    "title": "Equipaggiamento Non Valido",
+    "description": "Il giocatore ha equipaggiato armature o accessori non permessi dal regolamento."
+  },
+  "RULE_MISC_999": {
+    "category": "Generale",
+    "title": "Violazione Non Specificata",
+    "description": "È stata rilevata una violazione del regolamento non specificata in dettaglio."
+  }
+}

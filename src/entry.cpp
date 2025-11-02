@@ -22,7 +22,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
     AddonDef.APIVersion = NEXUS_API_VERSION;
     AddonDef.Name = "HeroesAscentGw2Nexus";
     AddonDef.Version.Major = 2;
-    AddonDef.Version.Minor = 1;
+    AddonDef.Version.Minor = 4;
     AddonDef.Version.Build = 0;
     AddonDef.Version.Revision = 0;
     AddonDef.Author = "NikeGipple";
@@ -33,7 +33,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
     AddonDef.Load = [](AddonAPI* aApi) {
         APIDefs = aApi;
 
-        // Setup ImGui context e allocatori
+        // Setup ImGui
         ImGui::SetCurrentContext((ImGuiContext*)aApi->ImguiContext);
         ImGui::SetAllocatorFunctions(
             (void* (*)(size_t, void*))aApi->ImguiMalloc,
@@ -51,16 +51,25 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             if (!APIDefs)
                 return;
 
-            // Se RTAPI non è ancora pronto, prova a ricollegarlo
+            // Se RTAPI non è pronto, prova a ricollegarlo
             if (!RTAPIData)
                 RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
 
             ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(460, 300), ImGuiCond_FirstUseEver);
 
-            ImGui::Begin("HeroesAscent Downed Tracker (RTAPI)", nullptr,
-                ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize |
-                ImGuiWindowFlags_NoSavedSettings);
+            ImGui::Begin("HeroesAscent Assistant", nullptr,
+                ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+
+            // Gestione ridimensionamento manuale (limite minimo)
+            ImVec2 winSize = ImGui::GetWindowSize();
+            float minW = 300.0f;
+            float minH = 150.0f;
+            if (winSize.x < minW || winSize.y < minH)
+                ImGui::SetWindowSize(ImVec2(
+                    winSize.x < minW ? minW : winSize.x,
+                    winSize.y < minH ? minH : winSize.y
+                ));
 
             // === Nome personaggio ===
             std::string playerName = "Nessun nome rilevato";
@@ -87,6 +96,10 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 bool isAlive = cs & CS_IsAlive;
                 bool isDowned = cs & CS_IsDowned;
                 bool inCombat = cs & CS_IsInCombat;
+                bool isSwimming = cs & CS_IsSwimming;
+                bool isUnderwater = cs & CS_IsUnderwater;
+                bool isGliding = cs & CS_IsGliding;
+                bool isFlying = cs & CS_IsFlying;
 
                 const char* stato = "Sconosciuto";
                 ImVec4 color = ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
@@ -109,7 +122,13 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
                 ImGui::TextColored(color, "Stato: %s", stato);
 
-
+                // === Dati extra ===
+                ImGui::Separator();
+                ImGui::Text("Mappa: %u | Tipo: %u", RTAPIData->MapID, RTAPIData->MapType);
+                ImGui::Text("Posizione: X %.2f | Y %.2f | Z %.2f",
+                    RTAPIData->CharacterPosition[0],
+                    RTAPIData->CharacterPosition[1],
+                    RTAPIData->CharacterPosition[2]);
             }
             else {
                 ImGui::TextColored(ImVec4(1, 1, 0, 1), "RTAPI non disponibile o non attiva...");

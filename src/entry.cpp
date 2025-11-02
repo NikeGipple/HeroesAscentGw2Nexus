@@ -56,7 +56,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
 
             ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(460, 180), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(460, 300), ImGuiCond_FirstUseEver);
 
             ImGui::Begin("HeroesAscent Downed Tracker (RTAPI)", nullptr,
                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize |
@@ -91,13 +91,13 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 const char* stato = "Sconosciuto";
                 ImVec4 color = ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
 
-                if (isDowned) {
-                    stato = "A TERRA (DOWNED)";
-                    color = ImVec4(1, 0.6f, 0.1f, 1);
-                }
-                else if (!isAlive) {
+                if (isDowned && !isAlive) {
                     stato = "MORTO";
                     color = ImVec4(1, 0.3f, 0.3f, 1);
+                }
+                else if (isDowned) {
+                    stato = "A TERRA (DOWNED)";
+                    color = ImVec4(1, 0.6f, 0.1f, 1);
                 }
                 else if (inCombat) {
                     stato = "IN COMBATTIMENTO";
@@ -108,12 +108,8 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 }
 
                 ImGui::TextColored(color, "Stato: %s", stato);
-                ImGui::Separator();
-                ImGui::Text("Mappa: %u | Tipo: %u", RTAPIData->MapID, RTAPIData->MapType);
-                ImGui::Text("Posizione: X %.2f | Y %.2f | Z %.2f",
-                    RTAPIData->CharacterPosition[0],
-                    RTAPIData->CharacterPosition[1],
-                    RTAPIData->CharacterPosition[2]);
+
+
             }
             else {
                 ImGui::TextColored(ImVec4(1, 1, 0, 1), "RTAPI non disponibile o non attiva...");

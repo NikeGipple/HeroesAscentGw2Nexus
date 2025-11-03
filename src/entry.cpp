@@ -171,7 +171,7 @@ void SendPlayerUpdate() {
         WINHTTP_NO_PROXY_BYPASS, 0);
 
     if (hSession) {
-        HINTERNET hConnect = WinHttpConnect(hSession, L"heroesascentserver.onrender.com",
+        HINTERNET hConnect = WinHttpConnect(hSession, L"heroesascent.org",
             INTERNET_DEFAULT_HTTPS_PORT, 0);
 
         if (hConnect) {

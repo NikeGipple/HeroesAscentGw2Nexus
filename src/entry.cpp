@@ -33,6 +33,7 @@ ImVec4 ServerColor = ImVec4(1, 1, 0, 1);
 std::string LastViolationTitle;
 std::string LastViolationDesc;
 std::string LastViolationCode; // codice violazione attuale
+std::string LastServerResponse; // risposta grezza del server (nuovo)
 
 /* === Snapshot dati giocatore === */
 struct PlayerSnapshot {
@@ -176,7 +177,7 @@ void SendPlayerUpdate() {
 
         if (hConnect) {
             HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"POST",
-                L"/update", NULL, WINHTTP_NO_REFERER,
+                L"/api/character/update", NULL, WINHTTP_NO_REFERER,
                 WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
 
             if (hRequest) {
@@ -201,12 +202,12 @@ void SendPlayerUpdate() {
                         response += buffer.data();
                     } while (dwSize > 0);
 
-                    // Pulisce la risposta
                     response.erase(std::remove_if(response.begin(), response.end(),
                         [](unsigned char c) { return c == '\n' || c == '\r' || c == ' '; }),
                         response.end());
 
-                    // Analisi risposta
+                    LastServerResponse = response;
+
                     if (response.find("\"rules_valid\":false") != std::string::npos) {
                         ServerStatus = T("ui.violation_detected");
                         ServerColor = ImVec4(1, 0.4f, 0.4f, 1);
@@ -236,6 +237,7 @@ void SendPlayerUpdate() {
                         LastViolationCode.clear();
                     }
                 }
+
                 WinHttpCloseHandle(hRequest);
             }
             WinHttpCloseHandle(hConnect);
@@ -256,9 +258,9 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
     AddonDef.APIVersion = NEXUS_API_VERSION;
     AddonDef.Name = "HeroesAscentGw2Nexus";
     AddonDef.Version.Major = 3;
-    AddonDef.Version.Minor = 6;
+    AddonDef.Version.Minor = 8;
     AddonDef.Author = "NikeGipple";
-    AddonDef.Description = "HeroesAscent Assistant with multilingual violations and UI";
+    AddonDef.Description = "HeroesAscent Assistant with multilingual violations, UI, and raw server response view";
     AddonDef.Flags = EAddonFlags_None;
 
     AddonDef.Load = [](AddonAPI* aApi) {
@@ -293,11 +295,11 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             }
 
             ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(500, 420), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(500, 460), ImGuiCond_FirstUseEver);
             ImGui::Begin("HeroesAscent Assistant", nullptr,
                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 
-            // === Selettore lingua (ora in alto) ===
+            // === Selettore lingua (in alto) ===
             ImGui::Text("%s:", "Language");
             ImGui::SameLine();
             static const char* langs[] = { "English", "Italiano" };
@@ -378,6 +380,17 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             }
             else {
                 ImGui::TextColored(ImVec4(1, 0.5f, 0.2f, 1), "%s", T("ui.not_available"));
+            }
+
+            // === Mostra risposta API grezza ===
+            if (!LastServerResponse.empty()) {
+                ImGui::Separator();
+                ImGui::Text("%s:", "Server raw response");
+                ImGui::InputTextMultiline("##response",
+                    (char*)LastServerResponse.c_str(),
+                    LastServerResponse.size() + 1,
+                    ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 6),
+                    ImGuiInputTextFlags_ReadOnly);
             }
 
             ImGui::End();

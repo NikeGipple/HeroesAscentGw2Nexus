@@ -4,6 +4,8 @@
 #include <string>
 #include <map>
 #include "json/json.hpp"
+#include "nexus/Nexus.h"
+
 
 using json = nlohmann::json;
 

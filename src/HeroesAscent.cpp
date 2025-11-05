@@ -5,7 +5,6 @@
 #include "Network.h"
 #include "imgui/imgui.h"
 #include "UIColors.h"
-#include "nexus/Nexus.h"
 #include "RTAPI/RTAPI.h"
 
 using namespace ImGui;
@@ -37,7 +36,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
     AddonDef.Version.Major = 4;
     AddonDef.Version.Minor = 13;
     AddonDef.Author = "NikeGipple";
-    AddonDef.Description = "Heroes Ascent Assistant (Localization + Registration + RTAPI + Violations)";
+    AddonDef.Description = "Heroes Ascent Assistant";
     AddonDef.Flags = EAddonFlags_None;
 
     AddonDef.Load = [](AddonAPI* aApi) {
@@ -55,6 +54,14 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
         LoadLanguage(CurrentLang);
         LoadViolations(CurrentLang);
         InitNetwork(aApi);
+
+        if (APIDefs) {
+            APIDefs->Log(ELogLevel_INFO, "Network", "Calling CheckServerStatus() after InitNetwork...");
+            CheckServerStatus(); 
+        }
+        else {
+            OutputDebugStringA("[HeroesAscent] APIDefs is NULL — cannot perform initial /api/status check.\n");
+        }
 
         RTAPIData = (RealTimeData*)aApi->DataLink.Get(DL_RTAPI);
 
@@ -124,7 +131,14 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 if (ServerStatus.empty()) {
                     ServerStatus = T("ui.checking_server"); 
                     ServerColor = ColorInfo;                  
-                    CheckServerStatus();                      
+                    if (APIDefs) {
+                        APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Performing initial /api/status check");
+                        CheckServerStatus();
+                    }
+                    else {
+                        // Messaggio visibile nel log Nexus, anche se l'API non è inizializzata correttamente
+                        printf("[HeroesAscent][WARNING] APIDefs is NULL — cannot perform initial /api/status check.\n");
+                    }
                 }
 
                 ImGui::TextColored(ServerColor, "%s", ServerStatus.c_str());

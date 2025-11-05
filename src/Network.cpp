@@ -1,4 +1,4 @@
-#include "Network.h"
+﻿#include "Network.h"
 #include <algorithm>
 #include <sstream>
 #include <vector>
@@ -23,6 +23,7 @@ std::string LastViolationTitle;
 std::string LastViolationDesc;
 
 extern RealTimeData* RTAPIData;
+extern AddonAPI* APIDefs;
 
 static void HttpPostJSON(const wchar_t* host, const wchar_t* path, const std::string& body, std::string& outResp) {
     HINTERNET s = WinHttpOpen(L"HeroesAscent/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
@@ -94,32 +95,41 @@ void SendPlayerUpdate() {
 }
 
 void CheckServerStatus() {
-    // stato di default se qualcosa va storto
-    ServerStatus = "Checking...";
-    ServerColor = ColorInfo;
+    if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Network", "=== CheckServerStatus() called ===");
 
     HINTERNET hSession = WinHttpOpen(L"HeroesAscent/1.0",
-        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-    if (!hSession) { ServerStatus = "Server offline"; ServerColor = ColorError; return; }
-
-    // timeout (ms): resolve / connect / send / receive
-    WinHttpSetTimeouts(hSession, 4000, 4000, 4000, 4000);
+        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!hSession) {
+        if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "WinHttpOpen failed");
+        ServerStatus = "Server offline"; ServerColor = ColorError;
+        return;
+    }
 
     HINTERNET hConnect = WinHttpConnect(hSession, L"heroesascent.org", INTERNET_DEFAULT_HTTPS_PORT, 0);
-    if (!hConnect) { WinHttpCloseHandle(hSession); ServerStatus = "Server offline"; ServerColor = ColorError; return; }
+    if (!hConnect) {
+        if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "WinHttpConnect failed");
+        WinHttpCloseHandle(hSession);
+        ServerStatus = "Server offline"; ServerColor = ColorError;
+        return;
+    }
 
     HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", L"/api/status", NULL,
         WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
     if (!hRequest) {
+        if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "WinHttpOpenRequest failed");
         WinHttpCloseHandle(hConnect); WinHttpCloseHandle(hSession);
-        ServerStatus = "Server offline"; ServerColor = ColorError; return;
+        ServerStatus = "Server offline"; ServerColor = ColorError;
+        return;
     }
 
+    if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Network", "Sending GET /api/status...");
     BOOL ok = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
         WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+
     std::string response;
     if (ok && WinHttpReceiveResponse(hRequest, NULL)) {
+        if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Network", "Response received");
+
         DWORD sz = 0;
         do {
             if (!WinHttpQueryDataAvailable(hRequest, &sz) || !sz) break;
@@ -127,6 +137,10 @@ void CheckServerStatus() {
             DWORD got = 0; WinHttpReadData(hRequest, buf.data(), sz, &got);
             buf[got] = 0; response += buf.data();
         } while (sz);
+        if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Network", ("Raw response: " + response).c_str());
+    }
+    else {
+        if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "No response or WinHttpReceiveResponse failed");
     }
 
     WinHttpCloseHandle(hRequest);
@@ -136,15 +150,18 @@ void CheckServerStatus() {
     if (response.find("\"status\":\"ok\"") != std::string::npos) {
         ServerStatus = "Server online";
         ServerColor = ColorSuccess;
+        if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Network", "Server online");
     }
     else {
         ServerStatus = "Server offline";
         ServerColor = ColorError;
+        if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "Server offline");
     }
 }
 
 
+
 void InitNetwork(AddonAPI* api) {
     (void)api;
-    ServerStatus = "Checking�";
+    ServerStatus = "Checking…";
 }

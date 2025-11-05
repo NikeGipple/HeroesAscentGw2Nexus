@@ -5,6 +5,7 @@
 #include <map>
 #include "json/json.hpp"
 #include "nexus/Nexus.h"
+#include "Globals.h"
 
 
 using json = nlohmann::json;
@@ -13,7 +14,6 @@ using json = nlohmann::json;
 std::string CurrentLang = "en";
 std::map<std::string, std::string> Translations;
 std::map<std::string, std::pair<std::string, std::string>> Violations;
-extern AddonAPI* APIDefs;
 
 /* === Utility base path === */
 extern "C" IMAGE_DOS_HEADER __ImageBase; // serve per ottenere il path reale della DLL

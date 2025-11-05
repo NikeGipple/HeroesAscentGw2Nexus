@@ -1,18 +1,20 @@
 ﻿#include <Windows.h>
+#include "imgui/imgui.h"
+#include "RTAPI/RTAPI.h"
 #include <string>
 #include <thread>
 #include "Localization.h"
 #include "Network.h"
-#include "imgui/imgui.h"
 #include "UIColors.h"
-#include "RTAPI/RTAPI.h"
+#include "PlayerData.h"
+#include "Globals.h"
+
 
 using namespace ImGui;
 
 /* === Variabili globali principali === */
 AddonDefinition AddonDef{};
-AddonAPI* APIDefs = nullptr;
-static RealTimeData* RTAPIData = nullptr;
+
 
 /* === Variabili di test registrazione === */
 extern std::string ApiKey;
@@ -52,8 +54,17 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
         // === Moduli principali ===
         InitLocalization(aApi);
         LoadLanguage(CurrentLang);
+
         LoadViolations(CurrentLang);
         InitNetwork(aApi);
+
+        AccountToken = LoadAccountToken();
+        if (!AccountToken.empty()) {
+            RegistrationStatus = T("ui.registration_already");
+            RegistrationColor = ColorSuccess;
+            if (APIDefs)
+                APIDefs->Log(ELogLevel_INFO, "Network", ("Loaded existing AccountToken: " + AccountToken).c_str());
+        }
 
         if (APIDefs) {
             APIDefs->Log(ELogLevel_INFO, "Network", "Calling CheckServerStatus() after InitNetwork...");
@@ -71,10 +82,43 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             if (!RTAPIData)
                 RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
 
+            //static uint64_t lastCheck = 0;
+            //uint64_t now = GetTickCount64();
+            //if (now - lastCheck > 200) { // ogni 200 ms
+            //    if (HasChanged(RTAPIData)) {
+            //        LastSnapshot.MapID = RTAPIData->MapID;
+            //        LastSnapshot.CharacterState = RTAPIData->CharacterState;
+            //        std::thread(SendPlayerUpdate).detach();
+            //    }
+            //    lastCheck = now;
+            //}
+
+            static bool sentOnce = false;
+            static uint64_t startTime = GetTickCount64();
+
+            if (!sentOnce) {
+                // tenta ogni 1 secondo fino a 10 secondi
+                if (GetTickCount64() - startTime < 10000) {
+                    if (!RTAPIData)
+                        RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
+
+                    if (RTAPIData && RTAPIData->GameBuild != 0) {
+                        APIDefs->Log(ELogLevel_INFO, "Network", "RTAPI ready — sending initial /api/character/update");
+                        std::thread(SendPlayerUpdate).detach();
+                        sentOnce = true;
+                    }
+                }
+                else {
+                    APIDefs->Log(ELogLevel_WARNING, "Network", "RTAPIData not available after 10s, skipping initial update");
+                    sentOnce = true;
+                }
+            }
+
+
             ImGui::SetNextWindowPos(ImVec2(30, 30), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(520, 520), ImGuiCond_FirstUseEver);
 
-            if (ImGui::Begin("HeroesAscent - Full Module", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            if (ImGui::Begin("HeroesAscent Assistant", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 
                 /* === Selettore lingua === */
                 ImGui::TextColored(ColorInfo, "%s:", T("ui.language"));
@@ -89,6 +133,18 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                             CurrentLang = (i == 0) ? "en" : "it";
                             LoadLanguage(CurrentLang);
                             LoadViolations(CurrentLang);
+
+                            if (!LastViolationCode.empty() && Violations.find(LastViolationCode) != Violations.end()) {
+                                LastViolationTitle = Violations[LastViolationCode].first;
+                                LastViolationDesc = Violations[LastViolationCode].second;
+                            }
+
+                            if (ServerStatus == T("ui.violation_detected") || ServerStatus == "Violation detected") {
+                                ServerStatus = T("ui.violation_detected");
+                            }
+                            else if (ServerStatus == T("ui.rules_respected") || ServerStatus == "Rules respected") {
+                                ServerStatus = T("ui.rules_respected");
+                            }
                         }
                         if (selected) ImGui::SetItemDefaultFocus();
                     }
@@ -196,18 +252,23 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 }
 
                 /* === Risposta grezza server === */
-                if (!LastServerResponse.empty()) {
-                    ImGui::Separator();
-                    ImGui::TextColored(ColorInfo, "%s", T("ui.server_raw_response"));
-                    ImGui::InputTextMultiline("##response",
-                        (char*)LastServerResponse.c_str(),
-                        LastServerResponse.size() + 1,
-                        ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 6),
-                        ImGuiInputTextFlags_ReadOnly);
-                }
+                ImGui::Separator();
+                ImGui::TextColored(ColorInfo, "%s", T("ui.server_raw_response"));
+
+                // Se la risposta è vuota, mostriamo un placeholder
+                std::string displayResponse = LastServerResponse.empty()
+                    ? "[Waiting for server response...]"
+                    : LastServerResponse;
+
+                ImGui::InputTextMultiline("##response",
+                    (char*)displayResponse.c_str(),
+                    displayResponse.size() + 1,
+                    ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 6),
+                    ImGuiInputTextFlags_ReadOnly);
+
 
                 ImGui::Separator();
-                ImGui::Text("Status OK - Localization + Registration + RTAPI + Violations active.");
+                ImGui::Text("version 0.03");
             }
             ImGui::End();
             });

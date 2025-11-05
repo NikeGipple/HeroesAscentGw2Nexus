@@ -29,3 +29,6 @@ void InitNetwork(AddonAPI* api);
 void SendRegistration();
 void SendPlayerUpdate();
 void CheckServerStatus();
+std::string LoadAccountToken();
+void SaveAccountToken(const std::string& token);
+

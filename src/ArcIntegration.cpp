@@ -1,7 +1,7 @@
 #include "ArcIntegration.h"
 #include <string>
+#include "Globals.h"
 
-extern AddonAPI* APIDefs;
 extern uint32_t PlayerLevel;
 extern std::string PlayerName;
 

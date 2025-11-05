@@ -22,6 +22,7 @@
     <ClCompile Include="PlayerData.cpp" />
     <ClCompile Include="ArcIntegration.cpp" />
     <ClCompile Include="UIColors.cpp" />
+    <ClCompile Include="Globals.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="imgui\imstb_truetype.h">
@@ -65,6 +66,9 @@
     </ClInclude>
     <ClInclude Include="RTAPI\RTAPI.h">
       <Filter>ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Globals.h">
+      <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

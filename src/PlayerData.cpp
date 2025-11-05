@@ -1,7 +1,7 @@
 #include "PlayerData.h"
 #include <cstring>
+#include "Globals.h"
 
-RealTimeData* RTAPIData = nullptr;
 PlayerSnapshot LastSnapshot{};
 uint32_t PlayerLevel = 0;
 std::string PlayerName;

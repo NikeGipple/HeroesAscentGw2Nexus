@@ -6,6 +6,9 @@
 #include <map>
 #include "RTAPI/RTAPI.h"
 #include "UIColors.h"
+#include "Localization.h"
+#include <fstream>
+#include "Globals.h"
 
 #pragma comment(lib, "winhttp.lib")
 
@@ -16,41 +19,77 @@ std::string RegistrationStatus = "Not registered";
 ImVec4      RegistrationColor = ImVec4(1, 1, 0, 1);
 std::string ServerStatus;
 ImVec4      ServerColor = ImVec4(1, 1, 0, 1);
-std::string LastServerResponse;
-
-
-std::string LastViolationTitle;
-std::string LastViolationDesc;
-
-extern RealTimeData* RTAPIData;
-extern AddonAPI* APIDefs;
 
 static void HttpPostJSON(const wchar_t* host, const wchar_t* path, const std::string& body, std::string& outResp) {
     HINTERNET s = WinHttpOpen(L"HeroesAscent/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
         WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!s) return;
+
     HINTERNET c = WinHttpConnect(s, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
     if (!c) { WinHttpCloseHandle(s); return; }
+
     HINTERNET r = WinHttpOpenRequest(c, L"POST", path, NULL, WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
     if (!r) { WinHttpCloseHandle(c); WinHttpCloseHandle(s); return; }
 
     std::wstring headers = L"Content-Type: application/json\r\n";
     BOOL ok = WinHttpSendRequest(r, headers.c_str(), -1L,
-        (LPVOID)body.data(), (DWORD)body.size(),
+        (LPVOID)body.c_str(), (DWORD)body.size(),
         (DWORD)body.size(), 0);
+
     if (ok && WinHttpReceiveResponse(r, NULL)) {
-        DWORD sz = 0; outResp.clear();
+        DWORD dwSize = 0;
+        std::string response;
         do {
-            if (!WinHttpQueryDataAvailable(r, &sz) || !sz) break;
-            std::vector<char> buf(sz + 1);
-            DWORD got = 0; WinHttpReadData(r, buf.data(), sz, &got);
-            buf[got] = 0; outResp += buf.data();
-        } while (sz);
-        outResp.erase(std::remove_if(outResp.begin(), outResp.end(),
-            [](unsigned char ch) { return ch == '\n' || ch == '\r' || ch == ' '; }), outResp.end());
+            if (!WinHttpQueryDataAvailable(r, &dwSize)) break;
+            if (dwSize == 0) break;
+            std::vector<char> buffer(dwSize + 1);
+            DWORD dwDownloaded = 0;
+            if (!WinHttpReadData(r, buffer.data(), dwSize, &dwDownloaded)) break;
+            buffer[dwDownloaded] = '\0';
+            response += buffer.data();
+        } while (dwSize > 0);
+        outResp = response;
     }
-    WinHttpCloseHandle(r); WinHttpCloseHandle(c); WinHttpCloseHandle(s);
+
+    if (APIDefs)
+        APIDefs->Log(ELogLevel_INFO, "Network", ("Response: " + outResp).c_str());
+
+    WinHttpCloseHandle(r);
+    WinHttpCloseHandle(c);
+    WinHttpCloseHandle(s);
+}
+
+
+void SaveAccountToken(const std::string& token) {
+    std::string path = GetAddonBasePath() + "\\accounttoken";
+    std::ofstream out(path, std::ios::trunc);
+    if (out.is_open()) {
+        out << token;
+        out.close();
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_INFO, "Network", ("Saved accounttoken: " + path).c_str());
+    }
+    else {
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_WARNING, "Network", ("Failed to save accounttoken at: " + path).c_str());
+    }
+}
+
+std::string LoadAccountToken() {
+    std::string path = GetAddonBasePath() + "\\accounttoken";
+    std::ifstream in(path);
+    if (!in.is_open()) {
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_WARNING, "Network", ("No accounttoken file found at: " + path).c_str());
+        return "";
+    }
+    std::string token;
+    std::getline(in, token);
+    in.close();
+    if (APIDefs)
+        APIDefs->Log(ELogLevel_INFO, "Network", ("Loaded accounttoken: " + token).c_str());
+    return token;
 }
 
 void SendRegistration() {
@@ -63,36 +102,142 @@ void SendRegistration() {
         RegistrationColor = ImVec4(0.3f, 1, 0.3f, 1);
         size_t s = resp.find("\"account_token\":\"");
         if (s != std::string::npos) {
-            s += 17; size_t e = resp.find('"', s);
+            s += 17;
+            size_t e = resp.find('"', s);
             AccountToken = resp.substr(s, e - s);
+
+            SaveAccountToken(AccountToken);
+
+            if (APIDefs)
+                APIDefs->Log(ELogLevel_INFO, "Network", ("Account token saved: " + AccountToken).c_str());
         }
     }
-    else {
-        RegistrationStatus = "Registration failed";
-        RegistrationColor = ImVec4(1, 0.4f, 0.4f, 1);
-    }
+
 }
 
 void SendPlayerUpdate() {
     if (!RTAPIData || AccountToken.empty()) return;
+
     std::ostringstream p;
     p << "{\"token\":\"" << AccountToken << "\","
         << "\"name\":\"" << RTAPIData->CharacterName << "\","
         << "\"map\":" << RTAPIData->MapID << ","
         << "\"state\":" << RTAPIData->CharacterState << "}";
 
-    std::string resp; HttpPostJSON(L"heroesascent.org", L"/api/character/update", p.str(), resp);
+    std::string resp;
+    HttpPostJSON(L"heroesascent.org", L"/api/character/update", p.str(), resp);
     LastServerResponse = resp;
-
-    if (resp.find("\"rules_valid\":false") != std::string::npos) {
-        ServerStatus = "Violation detected";
-        ServerColor = ImVec4(1, 0.4f, 0.4f, 1);
-    }
-    else {
-        ServerStatus = "Rules respected";
-        ServerColor = ImVec4(0.3f, 1, 0.3f, 1);
+    
+    if (APIDefs) {
+    if (resp.empty()) {
+        APIDefs->Log(ELogLevel_WARNING, "Network", "SendPlayerUpdate(): empty response from /api/character/update");
+    } else {
+        APIDefs->Log(ELogLevel_INFO, "Network", ("SendPlayerUpdate() response: " + resp).c_str());
     }
 }
+
+    if (resp.find("\"rules_valid\":false") != std::string::npos) {
+        ServerStatus = T("ui.violation_detected");
+        ServerColor = ColorError;
+
+        size_t codeStart = resp.find("\"violation_code\":\"");
+        if (codeStart != std::string::npos) {
+            codeStart += 18;
+            size_t codeEnd = resp.find('"', codeStart);
+            std::string code = resp.substr(codeStart, codeEnd - codeStart);
+            LastViolationCode = code;
+
+            if (APIDefs)
+                APIDefs->Log(ELogLevel_INFO, "Network", ("Violation code: " + code).c_str());
+
+            if (Violations.find(code) != Violations.end()) {
+                LastViolationTitle = Violations[code].first;
+                LastViolationDesc = Violations[code].second;
+            }
+            else {
+                LastViolationTitle = code;
+                LastViolationDesc = T("ui.unknown_violation");
+            }
+        }
+        else {
+            LastViolationTitle = "Unknown violation";
+            LastViolationDesc = T("ui.unknown_violation");
+        }
+    }
+    else {
+        ServerStatus = T("ui.rules_respected");
+        ServerColor = ColorSuccess;
+        LastViolationTitle.clear();
+        LastViolationDesc.clear();
+    }
+}
+
+//void SendPlayerUpdate() {
+//    if (!RTAPIData) {
+//        if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "SendPlayerUpdate() aborted: RTAPIData is null");
+//        return;
+//    }
+//
+//    if (AccountToken.empty()) {
+//        if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "SendPlayerUpdate() aborted: missing AccountToken");
+//        return;
+//    }
+//
+//    std::ostringstream p;
+//    p << "{\"token\":\"" << AccountToken << "\","
+//        << "\"name\":\"" << RTAPIData->CharacterName << "\","
+//        << "\"map\":" << RTAPIData->MapID << ","
+//        << "\"state\":" << RTAPIData->CharacterState << "}";
+//
+//    if (APIDefs)
+//        APIDefs->Log(ELogLevel_INFO, "Network", ("SendPlayerUpdate() sending payload: " + p.str()).c_str());
+//
+//    std::string resp;
+//    HttpPostJSON(L"heroesascent.org", L"/api/character/update", p.str(), resp);
+//
+//    // subito dopo la chiamata HTTP:
+//    if (APIDefs) {
+//        if (resp.empty()) {
+//            APIDefs->Log(ELogLevel_WARNING, "Network", "SendPlayerUpdate() => EMPTY RESPONSE!");
+//        }
+//        else {
+//            APIDefs->Log(ELogLevel_INFO, "Network", ("SendPlayerUpdate() raw response: " + resp).c_str());
+//        }
+//    }
+//
+//    LastServerResponse = resp;
+//
+//    if (resp.find("\"rules_valid\":false") != std::string::npos) {
+//        ServerStatus = T("ui.violation_detected");
+//        ServerColor = ColorError;
+//
+//        size_t codeStart = resp.find("\"violation_code\":\"");
+//        if (codeStart != std::string::npos) {
+//            codeStart += 18;
+//            size_t codeEnd = resp.find('"', codeStart);
+//            std::string code = resp.substr(codeStart, codeEnd - codeStart);
+//
+//            if (APIDefs)
+//                APIDefs->Log(ELogLevel_INFO, "Network", ("Violation code: " + code).c_str());
+//
+//            if (Violations.find(code) != Violations.end()) {
+//                LastViolationTitle = Violations[code].first;
+//                LastViolationDesc = Violations[code].second;
+//            }
+//            else {
+//                LastViolationTitle = code;
+//                LastViolationDesc = T("ui.unknown_violation");
+//            }
+//        }
+//    }
+//    else if (!resp.empty()) {
+//        ServerStatus = T("ui.rules_respected");
+//        ServerColor = ColorSuccess;
+//        LastViolationTitle.clear();
+//        LastViolationDesc.clear();
+//    }
+//}
+
 
 void CheckServerStatus() {
     if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Network", "=== CheckServerStatus() called ===");

@@ -5,10 +5,13 @@
 #include <winhttp.h>
 #include <map>
 #include "RTAPI/RTAPI.h"
+#include "mumble/Mumble.h"
 #include "UIColors.h"
 #include "Localization.h"
 #include <fstream>
 #include "Globals.h"
+#include <iomanip>
+#include "json/json.hpp"
 
 #pragma comment(lib, "winhttp.lib")
 
@@ -19,6 +22,18 @@ std::string RegistrationStatus = "Not registered";
 ImVec4      RegistrationColor = ImVec4(1, 1, 0, 1);
 std::string ServerStatus;
 ImVec4      ServerColor = ImVec4(1, 1, 0, 1);
+
+using json = nlohmann::json;
+
+// helper: wide -> utf8
+static std::string WideToUtf8(const wchar_t* ws) {
+    if (!ws) return {};
+    int len = WideCharToMultiByte(CP_UTF8, 0, ws, -1, nullptr, 0, nullptr, nullptr);
+    if (len <= 0) return {};
+    std::string out(len - 1, '\0'); // -1 per escludere il terminatore
+    WideCharToMultiByte(CP_UTF8, 0, ws, -1, out.data(), len, nullptr, nullptr);
+    return out;
+}
 
 static void HttpPostJSON(const wchar_t* host, const wchar_t* path, const std::string& body, std::string& outResp) {
     HINTERNET s = WinHttpOpen(L"HeroesAscent/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
@@ -60,7 +75,6 @@ static void HttpPostJSON(const wchar_t* host, const wchar_t* path, const std::st
     WinHttpCloseHandle(s);
 }
 
-
 void SaveAccountToken(const std::string& token) {
     std::string path = GetAddonBasePath() + "\\accounttoken";
     std::ofstream out(path, std::ios::trunc);
@@ -87,40 +101,97 @@ std::string LoadAccountToken() {
 }
 
 void SendRegistration() {
-    if (ApiKey.empty()) return;
-    std::ostringstream p; p << "{\"api_key\":\"" << ApiKey << "\"}";
-    std::string resp; HttpPostJSON(L"heroesascent.org", L"/api/register", p.str(), resp);
+    if (ApiKey.empty()) {
+        RegistrationStatus = T("ui.registration_missing_key");
+        RegistrationColor = ColorWarning;
+        return;
+    }
+
+    std::ostringstream p;
+    p << "{\"api_key\":\"" << ApiKey << "\"}";
+    std::string resp;
+    HttpPostJSON(L"heroesascent.org", L"/api/register", p.str(), resp);
 
     if (resp.find("\"status\":\"ok\"") != std::string::npos) {
-        RegistrationStatus = "Registered";
-        RegistrationColor = ImVec4(0.3f, 1, 0.3f, 1);
+        RegistrationStatus = T("ui.registration_success");
+        RegistrationColor = ColorSuccess;
+
         size_t s = resp.find("\"account_token\":\"");
         if (s != std::string::npos) {
             s += 17;
             size_t e = resp.find('"', s);
             AccountToken = resp.substr(s, e - s);
-
             SaveAccountToken(AccountToken);
+        }
+    }
+    else if (resp.find("already_registered") != std::string::npos) {
+        RegistrationStatus = T("ui.registration_already");
+        RegistrationColor = ColorWarning;
+    }
+    else if (resp.empty()) {
+        RegistrationStatus = T("ui.registration_no_response");
+        RegistrationColor = ColorError;
+    }
+    else {
+        RegistrationStatus = T("ui.registration_failed");
+        RegistrationColor = ColorError;
+    }
 
-            if (APIDefs)
-                APIDefs->Log(ELogLevel_INFO, "Network", ("Account token saved: " + AccountToken).c_str());
+    if (APIDefs)
+        APIDefs->Log(ELogLevel_INFO, "Network", ("Registration result: " + resp).c_str());
+}
+
+
+
+
+void SendPlayerUpdate(bool isLogin) {
+    if (!RTAPIData || AccountToken.empty()) return;
+
+    // === Costruzione JSON con RTAPI + Mumble ===
+    json payload = {
+        {"token", AccountToken},
+        {"name", RTAPIData->CharacterName},
+        {"map_id", RTAPIData->MapID},
+        {"map_type", RTAPIData->MapType},
+        {"profession", RTAPIData->Profession},
+        {"elite_spec", RTAPIData->EliteSpecialization},
+        {"mount", RTAPIData->MountIndex},
+        {"state", RTAPIData->CharacterState},
+        {"group_type", RTAPIData->GroupType},
+        {"group_count", RTAPIData->GroupMemberCount},
+        {"position", {
+            {"x", RTAPIData->CharacterPosition[0]},
+            {"y", RTAPIData->CharacterPosition[2]},
+            {"z", RTAPIData->CharacterPosition[1]}
+        }},
+        {"game_state", RTAPIData->GameState},
+        {"language", RTAPIData->Language},
+        { "is_login", isLogin }
+    };
+
+    // === Aggiunta dati extra da Mumble (se disponibile) ===
+    if (Mumble::Data* m = Mumble::GetData()) {
+        // ATTENZIONE: campo si chiama "Identity" (maiuscola) e contiene JSON widechar
+        const std::string identityUtf8 = WideToUtf8(m->Identity);
+
+        if (!identityUtf8.empty()) {
+            nlohmann::json id = nlohmann::json::parse(identityUtf8, nullptr, false);
+            if (!id.is_discarded()) {
+                payload["race"] = id.value("race", -1);
+                payload["commander"] = id.value("commander", false);
+                payload["team_color_id"] = id.value("team_color_id", -1);
+
+                // volendo puoi prendere anche la mount dal JSON standard di Mumble:
+                // payload["mount"] = id.value("mount", payload["mount"]);
+            }
         }
     }
 
-}
 
-void SendPlayerUpdate() {
-    if (!RTAPIData || AccountToken.empty()) return;
 
-    // === Costruzione del payload ===
-    std::ostringstream p;
-    p << "{\"token\":\"" << AccountToken << "\","
-        << "\"name\":\"" << RTAPIData->CharacterName << "\","
-        << "\"map\":" << RTAPIData->MapID << ","
-        << "\"state\":" << RTAPIData->CharacterState << "}";
-
+    // === Invio ===
     std::string resp;
-    HttpPostJSON(L"heroesascent.org", L"/api/character/update", p.str(), resp);
+    HttpPostJSON(L"heroesascent.org", L"/api/character/update", payload.dump(), resp);
     LastServerResponse = resp;
     
     if (APIDefs) {

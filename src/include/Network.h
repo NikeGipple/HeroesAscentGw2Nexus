@@ -27,7 +27,7 @@ extern RealTimeData* RTAPIData;
 // Funzioni
 void InitNetwork(AddonAPI* api);
 void SendRegistration();
-void SendPlayerUpdate();
+void SendPlayerUpdate(bool isLogin = false);
 void CheckServerStatus();
 std::string LoadAccountToken();
 void SaveAccountToken(const std::string& token);

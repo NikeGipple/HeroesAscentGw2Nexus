@@ -159,6 +159,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)RTAPI</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -198,6 +199,12 @@
     <ClCompile Include="Network.cpp" />
     <ClCompile Include="PlayerData.cpp" />
     <ClCompile Include="UIColors.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\locales\en.json" />
+    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\locales\it.json" />
+    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\violations\en.json" />
+    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\violations\it.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -85,37 +85,76 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             if (!RTAPIData)
                 RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
 
-            //static uint64_t lastCheck = 0;
-            //uint64_t now = GetTickCount64();
-            //if (now - lastCheck > 200) { // ogni 200 ms
-            //    if (HasChanged(RTAPIData)) {
-            //        LastSnapshot.MapID = RTAPIData->MapID;
-            //        LastSnapshot.CharacterState = RTAPIData->CharacterState;
-            //        std::thread(SendPlayerUpdate).detach();
-            //    }
-            //    lastCheck = now;
-            //}
+            static uint64_t lastCheck = 0;
+            static RealTimeData lastSnapshot{};
+            static bool firstLoginSent = false;
+            static std::string lastCharacterName = "";
 
-            static bool sentOnce = false;
-            static uint64_t startTime = GetTickCount64();
+            uint64_t now = GetTickCount64();
 
-            if (!sentOnce) {
-                // tenta ogni 1 secondo fino a 10 secondi
-                if (GetTickCount64() - startTime < 10000) {
-                    if (!RTAPIData)
-                        RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
+            if (now - lastCheck > 200) {
+                if (RTAPIData && RTAPIData->GameBuild != 0) {
 
-                    if (RTAPIData && RTAPIData->GameBuild != 0) {
-                        /*APIDefs->Log(ELogLevel_INFO, "Network", "RTAPI ready — sending initial /api/character/update");*/
-                        std::thread(SendPlayerUpdate).detach();
-                        sentOnce = true;
+                    bool hasChanged = (
+                        RTAPIData->MapID != lastSnapshot.MapID ||
+                        RTAPIData->CharacterState != lastSnapshot.CharacterState
+                        );
+
+                    std::string currentName = RTAPIData->CharacterName ? RTAPIData->CharacterName : "";
+                    bool isNewCharacter = (!lastCharacterName.empty() && currentName != lastCharacterName);
+
+                    // === Primo login o cambio personaggio ===
+                    if ((!firstLoginSent && !currentName.empty()) || isNewCharacter) {
+                        firstLoginSent = true;
+                        lastCharacterName = currentName;
+
+                        // ✅ aggiorniamo subito lo snapshot
+                        lastSnapshot.MapID = RTAPIData->MapID;
+                        lastSnapshot.CharacterState = RTAPIData->CharacterState;
+
+                        std::thread([]() { SendPlayerUpdate(true); }).detach();
+
+                        if (APIDefs)
+                            APIDefs->Log(ELogLevel_INFO, "Network", ("Login update sent for character: " + currentName).c_str());
+                    }
+                    else if (hasChanged) {
+                        lastSnapshot.MapID = RTAPIData->MapID;
+                        lastSnapshot.CharacterState = RTAPIData->CharacterState;
+
+                        std::thread([]() { SendPlayerUpdate(false); }).detach();
+
+                        if (APIDefs)
+                            APIDefs->Log(ELogLevel_INFO, "Network", "Detected change — sending normal update");
                     }
                 }
-                else {
-                    /*APIDefs->Log(ELogLevel_WARNING, "Network", "RTAPIData not available after 10s, skipping initial update");*/
-                    sentOnce = true;
-                }
+
+                lastCheck = now;
             }
+
+
+
+
+
+            //static bool sentOnce = false;
+            //static uint64_t startTime = GetTickCount64();
+
+            //if (!sentOnce) {
+            //    // tenta ogni 1 secondo fino a 10 secondi
+            //    if (GetTickCount64() - startTime < 10000) {
+            //        if (!RTAPIData)
+            //            RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
+
+            //        if (RTAPIData && RTAPIData->GameBuild != 0) {
+            //            /*APIDefs->Log(ELogLevel_INFO, "Network", "RTAPI ready — sending initial /api/character/update");*/
+            //            std::thread(SendPlayerUpdate).detach();
+            //            sentOnce = true;
+            //        }
+            //    }
+            //    else {
+            //        /*APIDefs->Log(ELogLevel_WARNING, "Network", "RTAPIData not available after 10s, skipping initial update");*/
+            //        sentOnce = true;
+            //    }
+            //}
 
 
             ImGui::SetNextWindowPos(ImVec2(30, 30), ImGuiCond_FirstUseEver);
@@ -166,8 +205,16 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 }
 
                 if (AccountToken.empty()) {
+                    ImVec2 inputPos = ImGui::GetCursorScreenPos();
                     if (ImGui::InputText("##apikey", apiKeyBuf, IM_ARRAYSIZE(apiKeyBuf)))
                         ApiKey = apiKeyBuf;
+
+                    if (strlen(apiKeyBuf) == 0) {
+                        ImGui::SetCursorScreenPos(ImVec2(inputPos.x + 5, inputPos.y + 3));
+                        ImGui::PushStyleColor(ImGuiCol_Text, ColorGray);
+                        ImGui::TextUnformatted(T("ui.registration_placeholder"));
+                        ImGui::PopStyleColor();
+                    }
 
                     ImGui::SameLine();
                     if (ImGui::Button(T("ui.registration_button"))) {
@@ -243,8 +290,8 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     ImGui::Text("%s: %.2f, %.2f, %.2f",
                         T("ui.position"),
                         RTAPIData->CharacterPosition[0],
-                        RTAPIData->CharacterPosition[1],
-                        RTAPIData->CharacterPosition[2]);
+                        RTAPIData->CharacterPosition[2],
+                        RTAPIData->CharacterPosition[1]);
                 }
                 else {
                     ImGui::TextColored(ColorWarning, "%s", T("ui.not_available"));

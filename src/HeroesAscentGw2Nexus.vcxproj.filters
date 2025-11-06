@@ -81,5 +81,25 @@
     <Filter Include="ext">
       <UniqueIdentifier>{13c791b2-80c9-4a2c-ace1-7c6be6caeed2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="locales">
+      <UniqueIdentifier>{c3dbbd7b-1e54-4274-b045-fe5ffce82f09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="violations">
+      <UniqueIdentifier>{e468c767-7491-48f3-8a26-0e7a13cff419}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\locales\en.json">
+      <Filter>locales</Filter>
+    </None>
+    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\locales\it.json">
+      <Filter>locales</Filter>
+    </None>
+    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\violations\en.json">
+      <Filter>violations</Filter>
+    </None>
+    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\violations\it.json">
+      <Filter>violations</Filter>
+    </None>
   </ItemGroup>
 </Project>

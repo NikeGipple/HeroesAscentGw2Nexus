@@ -206,26 +206,32 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
                 if (AccountToken.empty()) {
                     ImVec2 inputPos = ImGui::GetCursorScreenPos();
-                    if (ImGui::InputText("##apikey", apiKeyBuf, IM_ARRAYSIZE(apiKeyBuf)))
+                    ImGui::SetNextItemWidth(250);
+
+                    // Cattura stato attivo del campo
+                    bool inputActive = ImGui::InputText("##apikey", apiKeyBuf, IM_ARRAYSIZE(apiKeyBuf));
+                    if (inputActive)
                         ApiKey = apiKeyBuf;
 
-                    if (strlen(apiKeyBuf) == 0) {
-                        ImGui::SetCursorScreenPos(ImVec2(inputPos.x + 5, inputPos.y + 3));
-                        ImGui::PushStyleColor(ImGuiCol_Text, ColorGray);
-                        ImGui::TextUnformatted(T("ui.registration_placeholder"));
-                        ImGui::PopStyleColor();
+                    // Mostra placeholder solo se il campo è vuoto e non in focus
+                    if (strlen(apiKeyBuf) == 0 && !ImGui::IsItemActive()) {
+                        ImDrawList* drawList = ImGui::GetWindowDrawList();
+                        drawList->AddText(ImVec2(inputPos.x + 8, inputPos.y + 3),
+                            ImColor(ColorGray),
+                            T("ui.registration_placeholder"));
                     }
 
                     ImGui::SameLine();
                     if (ImGui::Button(T("ui.registration_button"))) {
-                        RegistrationStatus = "Sending...";
-                        RegistrationColor = ImVec4(1, 1, 0, 1);
+                        RegistrationStatus = T("ui.registration_sending");
+                        RegistrationColor = ColorInfo;
                         std::thread(SendRegistration).detach();
                     }
 
                     ImGui::SameLine();
                     ImGui::TextColored(RegistrationColor, "%s", RegistrationStatus.c_str());
                 }
+
                 else {
                     ImGui::TextColored(ColorSuccess, "%s", T("ui.registration_already"));
                     ImGui::Text("%s: %s", T("ui.registration_token"), AccountToken.c_str());

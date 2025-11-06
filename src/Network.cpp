@@ -67,8 +67,6 @@ void SaveAccountToken(const std::string& token) {
     if (out.is_open()) {
         out << token;
         out.close();
-        if (APIDefs)
-            APIDefs->Log(ELogLevel_INFO, "Network", ("Saved accounttoken: " + path).c_str());
     }
     else {
         if (APIDefs)
@@ -80,15 +78,11 @@ std::string LoadAccountToken() {
     std::string path = GetAddonBasePath() + "\\accounttoken";
     std::ifstream in(path);
     if (!in.is_open()) {
-        if (APIDefs)
-            APIDefs->Log(ELogLevel_WARNING, "Network", ("No accounttoken file found at: " + path).c_str());
         return "";
     }
     std::string token;
     std::getline(in, token);
     in.close();
-    if (APIDefs)
-        APIDefs->Log(ELogLevel_INFO, "Network", ("Loaded accounttoken: " + token).c_str());
     return token;
 }
 
@@ -172,75 +166,7 @@ void SendPlayerUpdate() {
     }
 }
 
-//void SendPlayerUpdate() {
-//    if (!RTAPIData) {
-//        if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "SendPlayerUpdate() aborted: RTAPIData is null");
-//        return;
-//    }
-//
-//    if (AccountToken.empty()) {
-//        if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "SendPlayerUpdate() aborted: missing AccountToken");
-//        return;
-//    }
-//
-//    std::ostringstream p;
-//    p << "{\"token\":\"" << AccountToken << "\","
-//        << "\"name\":\"" << RTAPIData->CharacterName << "\","
-//        << "\"map\":" << RTAPIData->MapID << ","
-//        << "\"state\":" << RTAPIData->CharacterState << "}";
-//
-//    if (APIDefs)
-//        APIDefs->Log(ELogLevel_INFO, "Network", ("SendPlayerUpdate() sending payload: " + p.str()).c_str());
-//
-//    std::string resp;
-//    HttpPostJSON(L"heroesascent.org", L"/api/character/update", p.str(), resp);
-//
-//    // subito dopo la chiamata HTTP:
-//    if (APIDefs) {
-//        if (resp.empty()) {
-//            APIDefs->Log(ELogLevel_WARNING, "Network", "SendPlayerUpdate() => EMPTY RESPONSE!");
-//        }
-//        else {
-//            APIDefs->Log(ELogLevel_INFO, "Network", ("SendPlayerUpdate() raw response: " + resp).c_str());
-//        }
-//    }
-//
-//    LastServerResponse = resp;
-//
-//    if (resp.find("\"rules_valid\":false") != std::string::npos) {
-//        ServerStatus = T("ui.violation_detected");
-//        ServerColor = ColorError;
-//
-//        size_t codeStart = resp.find("\"violation_code\":\"");
-//        if (codeStart != std::string::npos) {
-//            codeStart += 18;
-//            size_t codeEnd = resp.find('"', codeStart);
-//            std::string code = resp.substr(codeStart, codeEnd - codeStart);
-//
-//            if (APIDefs)
-//                APIDefs->Log(ELogLevel_INFO, "Network", ("Violation code: " + code).c_str());
-//
-//            if (Violations.find(code) != Violations.end()) {
-//                LastViolationTitle = Violations[code].first;
-//                LastViolationDesc = Violations[code].second;
-//            }
-//            else {
-//                LastViolationTitle = code;
-//                LastViolationDesc = T("ui.unknown_violation");
-//            }
-//        }
-//    }
-//    else if (!resp.empty()) {
-//        ServerStatus = T("ui.rules_respected");
-//        ServerColor = ColorSuccess;
-//        LastViolationTitle.clear();
-//        LastViolationDesc.clear();
-//    }
-//}
-
-
 void CheckServerStatus() {
-    if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Network", "=== CheckServerStatus() called ===");
 
     HINTERNET hSession = WinHttpOpen(L"HeroesAscent/1.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
@@ -267,7 +193,6 @@ void CheckServerStatus() {
         return;
     }
 
-    if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Network", "Sending GET /api/status...");
     BOOL ok = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
         WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
 
@@ -282,7 +207,6 @@ void CheckServerStatus() {
             DWORD got = 0; WinHttpReadData(hRequest, buf.data(), sz, &got);
             buf[got] = 0; response += buf.data();
         } while (sz);
-        if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Network", ("Raw response: " + response).c_str());
     }
     else {
         if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "No response or WinHttpReceiveResponse failed");

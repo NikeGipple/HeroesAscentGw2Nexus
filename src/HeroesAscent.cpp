@@ -8,6 +8,8 @@
 #include "UIColors.h"
 #include "PlayerData.h"
 #include "Globals.h"
+#include <ArcIntegration.h>
+
 
 
 using namespace ImGui;
@@ -57,13 +59,14 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
         LoadViolations(CurrentLang);
         InitNetwork(aApi);
+        InitArcIntegration(aApi);
 
         AccountToken = LoadAccountToken();
         if (!AccountToken.empty()) {
             RegistrationStatus = T("ui.registration_already");
             RegistrationColor = ColorSuccess;
-            if (APIDefs)
-                APIDefs->Log(ELogLevel_INFO, "Network", ("Loaded existing AccountToken: " + AccountToken).c_str());
+            //if (APIDefs)
+            //    APIDefs->Log(ELogLevel_INFO, "Network", ("Loaded existing AccountToken: " + AccountToken).c_str());
         }
 
         if (APIDefs) {
@@ -103,13 +106,13 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
 
                     if (RTAPIData && RTAPIData->GameBuild != 0) {
-                        APIDefs->Log(ELogLevel_INFO, "Network", "RTAPI ready — sending initial /api/character/update");
+                        /*APIDefs->Log(ELogLevel_INFO, "Network", "RTAPI ready — sending initial /api/character/update");*/
                         std::thread(SendPlayerUpdate).detach();
                         sentOnce = true;
                     }
                 }
                 else {
-                    APIDefs->Log(ELogLevel_WARNING, "Network", "RTAPIData not available after 10s, skipping initial update");
+                    /*APIDefs->Log(ELogLevel_WARNING, "Network", "RTAPIData not available after 10s, skipping initial update");*/
                     sentOnce = true;
                 }
             }
@@ -190,10 +193,6 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     if (APIDefs) {
                         APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Performing initial /api/status check");
                         CheckServerStatus();
-                    }
-                    else {
-                        // Messaggio visibile nel log Nexus, anche se l'API non è inizializzata correttamente
-                        printf("[HeroesAscent][WARNING] APIDefs is NULL — cannot perform initial /api/status check.\n");
                     }
                 }
 

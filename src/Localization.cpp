@@ -35,8 +35,6 @@ std::string GetAddonBasePath() {
 /* === Inizializzazione === */
 void InitLocalization(AddonAPI* api) {
     APIDefs = api;
-    if (APIDefs)
-        APIDefs->Log(ELogLevel_INFO, "Localization", "Initializing localization system...");
     LoadLanguage(CurrentLang);
     LoadViolations(CurrentLang);
 }
@@ -46,7 +44,6 @@ void LoadLanguage(const std::string& lang) {
     Translations.clear();
 
     std::string path = GetAddonBasePath() + "\\locales\\" + lang + ".json";
-    if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Localization", ("Loading language file: " + path).c_str());
 
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -64,8 +61,6 @@ void LoadLanguage(const std::string& lang) {
         for (auto it = data.begin(); it != data.end(); ++it) {
             Translations[it.key()] = it.value().get<std::string>();
         }
-        if (APIDefs)
-            APIDefs->Log(ELogLevel_INFO, "Localization", ("Loaded " + std::to_string(Translations.size()) + " translations").c_str());
     }
     catch (const std::exception& e) {
         if (APIDefs)
@@ -99,8 +94,6 @@ void LoadViolations(const std::string& lang) {
                 };
             }
         }
-        if (APIDefs)
-            APIDefs->Log(ELogLevel_INFO, "Localization", ("Loaded " + std::to_string(Violations.size()) + " violations").c_str());
     }
     catch (const std::exception& e) {
         if (APIDefs)

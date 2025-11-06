@@ -112,6 +112,7 @@ void SendRegistration() {
 void SendPlayerUpdate() {
     if (!RTAPIData || AccountToken.empty()) return;
 
+    // === Costruzione del payload ===
     std::ostringstream p;
     p << "{\"token\":\"" << AccountToken << "\","
         << "\"name\":\"" << RTAPIData->CharacterName << "\","

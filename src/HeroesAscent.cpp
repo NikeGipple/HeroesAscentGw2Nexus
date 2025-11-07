@@ -95,9 +95,14 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             if (now - lastCheck > 200) {
                 if (RTAPIData && RTAPIData->GameBuild != 0) {
 
+                    bool isAlive = (RTAPIData->CharacterState & CS_IsAlive);
+                    bool isDowned = (RTAPIData->CharacterState & CS_IsDowned);
+                    bool isDead = (!isAlive && !isDowned);
+
                     bool hasChanged = (
                         RTAPIData->MapID != lastSnapshot.MapID ||
-                        RTAPIData->CharacterState != lastSnapshot.CharacterState
+                        isDowned ||
+                        isDead
                         );
 
                     std::string currentName = RTAPIData->CharacterName ? RTAPIData->CharacterName : "";
@@ -108,7 +113,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         firstLoginSent = true;
                         lastCharacterName = currentName;
 
-                        // ✅ aggiorniamo subito lo snapshot
+                        // aggiorniamo subito lo snapshot
                         lastSnapshot.MapID = RTAPIData->MapID;
                         lastSnapshot.CharacterState = RTAPIData->CharacterState;
 
@@ -130,32 +135,6 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
                 lastCheck = now;
             }
-
-
-
-
-
-            //static bool sentOnce = false;
-            //static uint64_t startTime = GetTickCount64();
-
-            //if (!sentOnce) {
-            //    // tenta ogni 1 secondo fino a 10 secondi
-            //    if (GetTickCount64() - startTime < 10000) {
-            //        if (!RTAPIData)
-            //            RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
-
-            //        if (RTAPIData && RTAPIData->GameBuild != 0) {
-            //            /*APIDefs->Log(ELogLevel_INFO, "Network", "RTAPI ready — sending initial /api/character/update");*/
-            //            std::thread(SendPlayerUpdate).detach();
-            //            sentOnce = true;
-            //        }
-            //    }
-            //    else {
-            //        /*APIDefs->Log(ELogLevel_WARNING, "Network", "RTAPIData not available after 10s, skipping initial update");*/
-            //        sentOnce = true;
-            //    }
-            //}
-
 
             ImGui::SetNextWindowPos(ImVec2(30, 30), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(520, 520), ImGuiCond_FirstUseEver);

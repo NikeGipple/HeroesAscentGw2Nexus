@@ -1,3 +1,4 @@
+// UIColors.cpp
 #include "UIColors.h"
 
 // Definizioni reali dei colori globali (una sola TU deve definirli)

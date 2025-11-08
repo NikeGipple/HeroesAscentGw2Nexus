@@ -1,3 +1,4 @@
+// Localization.cpp
 #include "Localization.h"
 #include <Windows.h>
 #include <fstream>

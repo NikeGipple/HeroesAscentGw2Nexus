@@ -1,3 +1,4 @@
+// Localization.h
 #pragma once
 #include <string>
 #include <map>

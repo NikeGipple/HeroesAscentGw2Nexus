@@ -1,4 +1,5 @@
-﻿#include "Network.h"
+﻿// Network.cpp
+#include "Network.h"
 #include <algorithm>
 #include <sstream>
 #include <vector>
@@ -154,7 +155,6 @@ void SendRegistration() {
     if (APIDefs)
         APIDefs->Log(ELogLevel_INFO, "Network", ("Registration result: " + resp).c_str());
 }
-
 
 void SendPlayerUpdate(PlayerEventType eventType) {
     if (!RTAPIData || AccountToken.empty()) return;

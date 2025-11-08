@@ -1,4 +1,5 @@
-﻿#pragma once
+﻿// PlayerEventType.h
+#pragma once
 enum class PlayerEventType {
     LOGIN,
     DOWNED,

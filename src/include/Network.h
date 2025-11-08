@@ -1,4 +1,5 @@
-﻿#pragma once
+﻿// Network.h
+#pragma once
 #include <string>
 #include "nexus/Nexus.h"
 #include "imgui/imgui.h"

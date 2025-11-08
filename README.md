@@ -1,4 +1,4 @@
-Heroes Ascent Client
+<h1>Heroes Ascent Client</h1>
 
 Heroes Ascent Client is a Guild Wars 2 addon built for the Heroes Ascent Competition, organized by the Italian community L’Arco del Leone.
 The client integrates directly with Guild Wars 2 through RTAPI and Mumble Link, monitoring real-time player data to ensure fair competition and automatic rule validation.

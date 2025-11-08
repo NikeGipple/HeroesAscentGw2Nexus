@@ -4,6 +4,7 @@
 #include "imgui/imgui.h"
 #include "RTAPI/RTAPI.h"  
 #include <map>
+#include "PlayerEventType.h"
 
 // Variabili globali condivise
 extern std::string ApiKey;
@@ -27,7 +28,7 @@ extern RealTimeData* RTAPIData;
 // Funzioni
 void InitNetwork(AddonAPI* api);
 void SendRegistration();
-void SendPlayerUpdate(bool isLogin = false);
+void SendPlayerUpdate(PlayerEventType eventType);
 void CheckServerStatus();
 std::string LoadAccountToken();
 void SaveAccountToken(const std::string& token);

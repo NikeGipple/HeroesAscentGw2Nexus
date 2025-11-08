@@ -183,6 +183,7 @@
     <ClInclude Include="include\PlayerData.h" />
     <ClInclude Include="mumble\Mumble.h" />
     <ClInclude Include="nexus\Nexus.h" />
+    <ClInclude Include="PlayerEventType.h" />
     <ClInclude Include="RTAPI\RTAPI.h" />
     <ClInclude Include="UIColors.h" />
   </ItemGroup>

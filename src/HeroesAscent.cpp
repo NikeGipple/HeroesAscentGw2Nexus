@@ -9,8 +9,7 @@
 #include "PlayerData.h"
 #include "Globals.h"
 #include <ArcIntegration.h>
-
-
+#include "PlayerEventType.h"
 
 using namespace ImGui;
 
@@ -31,6 +30,7 @@ extern ImVec4 ServerColor;
 extern std::string LastViolationTitle;
 extern std::string LastViolationDesc;
 extern std::string LastServerResponse;
+
 
 /* === Entry Point Addon === */
 extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
@@ -77,63 +77,82 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             OutputDebugStringA("[HeroesAscent] APIDefs is NULL — cannot perform initial /api/status check.\n");
         }
 
-        RTAPIData = (RealTimeData*)aApi->DataLink.Get(DL_RTAPI);
-
         // === Renderer ===
         aApi->Renderer.Register(ERenderType_Render, []() {
             if (!APIDefs) return;
             if (!RTAPIData)
                 RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
 
-            static uint64_t lastCheck = 0;
+            static uint64_t lastTick = 0;
             static RealTimeData lastSnapshot{};
+            static bool snapshotInit = false;
             static bool firstLoginSent = false;
             static std::string lastCharacterName = "";
 
             uint64_t now = GetTickCount64();
 
-            if (now - lastCheck > 200) {
+            if (now - lastTick >= 200) {
+                lastTick = now;
+
                 if (RTAPIData && RTAPIData->GameBuild != 0) {
+                    if (!snapshotInit) {
+                        lastSnapshot = *RTAPIData;
+                        snapshotInit = true;
+                    }
 
-                    bool isAlive = (RTAPIData->CharacterState & CS_IsAlive);
-                    bool isDowned = (RTAPIData->CharacterState & CS_IsDowned);
-                    bool isDead = (!isAlive && !isDowned);
+                    // Stato attuale
+                    const uint32_t csNow = RTAPIData->CharacterState;
+                    const bool nowAlive = (csNow & CS_IsAlive) != 0;
+                    const bool nowDowned = (csNow & CS_IsDowned) != 0;
+                    const bool nowDead = (!nowAlive && !nowDowned);
 
-                    bool hasChanged = (
-                        RTAPIData->MapID != lastSnapshot.MapID ||
-                        isDowned ||
-                        isDead
-                        );
+                    // Stato precedente
+                    const uint32_t csPrev = lastSnapshot.CharacterState;
+                    const bool prevAlive = (csPrev & CS_IsAlive) != 0;
+                    const bool prevDowned = (csPrev & CS_IsDowned) != 0;
+                    const bool prevDead = (!prevAlive && !prevDowned);
 
-                    std::string currentName = RTAPIData->CharacterName ? RTAPIData->CharacterName : "";
-                    bool isNewCharacter = (!lastCharacterName.empty() && currentName != lastCharacterName);
+                    const uint32_t mapNow = RTAPIData->MapID;
+                    const uint32_t mapPrev = lastSnapshot.MapID;
+                    const uint32_t mountNow = RTAPIData->MountIndex;
+                    const uint32_t mountPrev = lastSnapshot.MountIndex;
 
-                    // === Primo login o cambio personaggio ===
+                    const std::string currentName = RTAPIData->CharacterName ? RTAPIData->CharacterName : "";
+                    const bool isNewCharacter = (!lastCharacterName.empty() && currentName != lastCharacterName);
+
+                    // === LOGIN ===
                     if ((!firstLoginSent && !currentName.empty()) || isNewCharacter) {
                         firstLoginSent = true;
                         lastCharacterName = currentName;
-
-                        // aggiorniamo subito lo snapshot
-                        lastSnapshot.MapID = RTAPIData->MapID;
-                        lastSnapshot.CharacterState = RTAPIData->CharacterState;
-
-                        std::thread([]() { SendPlayerUpdate(true); }).detach();
-
-                        if (APIDefs)
-                            APIDefs->Log(ELogLevel_INFO, "Network", ("Login update sent for character: " + currentName).c_str());
+                        SendPlayerUpdate(PlayerEventType::LOGIN);
+                        lastSnapshot = *RTAPIData;
                     }
-                    else if (hasChanged) {
-                        lastSnapshot.MapID = RTAPIData->MapID;
-                        lastSnapshot.CharacterState = RTAPIData->CharacterState;
-
-                        std::thread([]() { SendPlayerUpdate(false); }).detach();
-
-                        if (APIDefs)
-                            APIDefs->Log(ELogLevel_INFO, "Network", "Detected change — sending normal update");
+                    // === DOWNED ===
+                    else if (nowDowned && !prevDowned) {
+                        SendPlayerUpdate(PlayerEventType::DOWNED);
+                        lastSnapshot.CharacterState = csNow;
+                    }
+                    // === DEAD ===
+                    else if (nowDead && !prevDead) {
+                        SendPlayerUpdate(PlayerEventType::DEAD);
+                        lastSnapshot.CharacterState = csNow;
+                    }
+                    // === RESPAWN ===
+                    else if (nowAlive && !prevAlive) {
+                        SendPlayerUpdate(PlayerEventType::RESPAWN);
+                        lastSnapshot.CharacterState = csNow;
+                    }
+                    // === MAP CHANGED ===
+                    else if (mapNow != mapPrev) {
+                        SendPlayerUpdate(PlayerEventType::MAP_CHANGED);
+                        lastSnapshot.MapID = mapNow;
+                    }
+                    // === MOUNT CHANGED ===
+                    else if (mountNow != mountPrev) {
+                        SendPlayerUpdate(PlayerEventType::MOUNT_CHANGED);
+                        lastSnapshot.MountIndex = mountNow;
                     }
                 }
-
-                lastCheck = now;
             }
 
             ImGui::SetNextWindowPos(ImVec2(30, 30), ImGuiCond_FirstUseEver);

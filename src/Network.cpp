@@ -12,6 +12,7 @@
 #include "Globals.h"
 #include <iomanip>
 #include "json/json.hpp"
+#include "PlayerEventType.h"
 
 #pragma comment(lib, "winhttp.lib")
 
@@ -73,6 +74,19 @@ static void HttpPostJSON(const wchar_t* host, const wchar_t* path, const std::st
     WinHttpCloseHandle(r);
     WinHttpCloseHandle(c);
     WinHttpCloseHandle(s);
+}
+
+void SendJsonToServer(const wchar_t* path, const std::string& body, std::string& outResp) {
+    outResp.clear();
+    HttpPostJSON(L"heroesascent.org", path, body, outResp);
+    LastServerResponse = outResp;
+
+    if (APIDefs) {
+        if (outResp.empty())
+            APIDefs->Log(ELogLevel_WARNING, "Network", "SendJsonToServer(): empty response");
+        else
+            APIDefs->Log(ELogLevel_INFO, "Network", (std::string("POST ") + WideToUtf8(path) + " => " + outResp).c_str());
+    }
 }
 
 void SaveAccountToken(const std::string& token) {
@@ -142,12 +156,10 @@ void SendRegistration() {
 }
 
 
-
-
-void SendPlayerUpdate(bool isLogin) {
+void SendPlayerUpdate(PlayerEventType eventType) {
     if (!RTAPIData || AccountToken.empty()) return;
 
-    // === Costruzione JSON con RTAPI + Mumble ===
+    // === Costruzione JSON completo ===
     json payload = {
         {"token", AccountToken},
         {"name", RTAPIData->CharacterName},
@@ -166,75 +178,32 @@ void SendPlayerUpdate(bool isLogin) {
         }},
         {"game_state", RTAPIData->GameState},
         {"language", RTAPIData->Language},
-        { "is_login", isLogin }
+        {"event", ToString(eventType)}
     };
 
     // === Aggiunta dati extra da Mumble (se disponibile) ===
     if (Mumble::Data* m = Mumble::GetData()) {
-        // ATTENZIONE: campo si chiama "Identity" (maiuscola) e contiene JSON widechar
         const std::string identityUtf8 = WideToUtf8(m->Identity);
-
         if (!identityUtf8.empty()) {
             nlohmann::json id = nlohmann::json::parse(identityUtf8, nullptr, false);
             if (!id.is_discarded()) {
                 payload["race"] = id.value("race", -1);
                 payload["commander"] = id.value("commander", false);
                 payload["team_color_id"] = id.value("team_color_id", -1);
-
-                // volendo puoi prendere anche la mount dal JSON standard di Mumble:
-                // payload["mount"] = id.value("mount", payload["mount"]);
             }
         }
     }
-
-
 
     // === Invio ===
     std::string resp;
     HttpPostJSON(L"heroesascent.org", L"/api/character/update", payload.dump(), resp);
     LastServerResponse = resp;
-    
+
     if (APIDefs) {
-    if (resp.empty()) {
-        APIDefs->Log(ELogLevel_WARNING, "Network", "SendPlayerUpdate(): empty response from /api/character/update");
-    } else {
-        APIDefs->Log(ELogLevel_INFO, "Network", ("SendPlayerUpdate() response: " + resp).c_str());
-    }
-}
-
-    if (resp.find("\"rules_valid\":false") != std::string::npos) {
-        ServerStatus = T("ui.violation_detected");
-        ServerColor = ColorError;
-
-        size_t codeStart = resp.find("\"violation_code\":\"");
-        if (codeStart != std::string::npos) {
-            codeStart += 18;
-            size_t codeEnd = resp.find('"', codeStart);
-            std::string code = resp.substr(codeStart, codeEnd - codeStart);
-            LastViolationCode = code;
-
-            if (APIDefs)
-                APIDefs->Log(ELogLevel_INFO, "Network", ("Violation code: " + code).c_str());
-
-            if (Violations.find(code) != Violations.end()) {
-                LastViolationTitle = Violations[code].first;
-                LastViolationDesc = Violations[code].second;
-            }
-            else {
-                LastViolationTitle = code;
-                LastViolationDesc = T("ui.unknown_violation");
-            }
-        }
-        else {
-            LastViolationTitle = "Unknown violation";
-            LastViolationDesc = T("ui.unknown_violation");
-        }
-    }
-    else {
-        ServerStatus = T("ui.rules_respected");
-        ServerColor = ColorSuccess;
-        LastViolationTitle.clear();
-        LastViolationDesc.clear();
+        if (resp.empty())
+            APIDefs->Log(ELogLevel_WARNING, "Network", "SendPlayerUpdate(): empty response");
+        else
+            APIDefs->Log(ELogLevel_INFO, "Network", ("SendPlayerUpdate() => " + resp).c_str());
     }
 }
 
@@ -299,8 +268,6 @@ void CheckServerStatus() {
         if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "Server offline");
     }
 }
-
-
 
 void InitNetwork(AddonAPI* api) {
     (void)api;

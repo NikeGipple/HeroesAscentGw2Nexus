@@ -27,6 +27,8 @@ std::string GetAddonBasePath() {
     // Forza sempre il percorso alla sottocartella del modulo
     basePath += "\\HeroesAscentGw2Nexus";
 
+    if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Localization", ("Base path: " + basePath).c_str());
+
 
     return basePath;
 }
@@ -108,10 +110,10 @@ const char* T(const std::string& key) {
     auto it = Translations.find(key);
     if (it != Translations.end()) return it->second.c_str();
 
-    if (APIDefs) {
-        std::string msg = "Missing key: " + key;
-        APIDefs->Log(ELogLevel_WARNING, "Localization", msg.c_str());
-    }
+    //if (APIDefs) {
+    //    std::string msg = "Missing key: " + key;
+    //    APIDefs->Log(ELogLevel_WARNING, "Localization", msg.c_str());
+    //}
 
     return key.c_str();
 }

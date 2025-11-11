@@ -37,22 +37,45 @@ static std::string WideToUtf8(const wchar_t* ws) {
     return out;
 }
 
-static void HttpPostJSON(const wchar_t* host, const wchar_t* path, const std::string& body, std::string& outResp) {
-    HINTERNET s = WinHttpOpen(L"HeroesAscent/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+static void HttpPostJSON(const wchar_t* host,
+    const wchar_t* path,
+    const std::string& body,
+    std::string& outResp,
+    DWORD timeoutMs = 0) // opzionale (0 = usa default di sistema)
+{
+    HINTERNET s = WinHttpOpen(L"HeroesAscent/1.0",
+        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+        WINHTTP_NO_PROXY_NAME,
+        WINHTTP_NO_PROXY_BYPASS,
+        0);
     if (!s) return;
 
     HINTERNET c = WinHttpConnect(s, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
     if (!c) { WinHttpCloseHandle(s); return; }
 
-    HINTERNET r = WinHttpOpenRequest(c, L"POST", path, NULL, WINHTTP_NO_REFERER,
-        WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+    HINTERNET r = WinHttpOpenRequest(c, L"POST", path, NULL,
+        WINHTTP_NO_REFERER,
+        WINHTTP_DEFAULT_ACCEPT_TYPES,
+        WINHTTP_FLAG_SECURE);
     if (!r) { WinHttpCloseHandle(c); WinHttpCloseHandle(s); return; }
 
+    // Se specificato, imposta timeout personalizzato
+    if (timeoutMs > 0) {
+        WinHttpSetTimeouts(r,
+            10000,        // DNS resolve timeout
+            10000,        // connect timeout
+            timeoutMs,    // send timeout
+            timeoutMs);   // receive timeout
+    }
+
     std::wstring headers = L"Content-Type: application/json\r\n";
-    BOOL ok = WinHttpSendRequest(r, headers.c_str(), -1L,
-        (LPVOID)body.c_str(), (DWORD)body.size(),
-        (DWORD)body.size(), 0);
+    BOOL ok = WinHttpSendRequest(r,
+        headers.c_str(),
+        -1L,
+        (LPVOID)body.c_str(),
+        (DWORD)body.size(),
+        (DWORD)body.size(),
+        0);
 
     if (ok && WinHttpReceiveResponse(r, NULL)) {
         DWORD dwSize = 0;
@@ -70,7 +93,9 @@ static void HttpPostJSON(const wchar_t* host, const wchar_t* path, const std::st
     }
 
     if (APIDefs)
-        APIDefs->Log(ELogLevel_INFO, "Network", ("Response: " + outResp).c_str());
+        APIDefs->Log(ELogLevel_INFO, "Network",
+            ("Response: " + outResp + " (timeout=" +
+                std::to_string(timeoutMs) + "ms)").c_str());
 
     WinHttpCloseHandle(r);
     WinHttpCloseHandle(c);
@@ -140,7 +165,7 @@ void SendRegistration() {
     p << "}";
 
     std::string resp;
-    HttpPostJSON(L"heroesascent.org", L"/api/register", p.str(), resp);
+    HttpPostJSON(L"heroesascent.org", L"/api/register", p.str(), resp, 70000);
 
     if (APIDefs)
         APIDefs->Log(ELogLevel_INFO, "Network", ("Registration raw response: " + resp).c_str());
@@ -166,10 +191,32 @@ void SendRegistration() {
     if (message == "registered") {
         RegistrationStatus = T("ui.registration_registered");
         RegistrationColor = ColorSuccess;
+
+        // Salva il token solo in caso di registrazione riuscita
+        size_t s = resp.find("\"account_token\":\"");
+        if (s != std::string::npos) {
+            s += 17;
+            size_t e = resp.find('"', s);
+            if (e != std::string::npos) {
+                AccountToken = resp.substr(s, e - s);
+                SaveAccountToken(AccountToken);
+            }
+        }
     }
     else if (message == "already_registered") {
         RegistrationStatus = T("ui.registration_already_registered");
         RegistrationColor = ColorWarning;
+
+        // Aggiorniamo/riconfermiamo il token
+        size_t s = resp.find("\"account_token\":\"");
+        if (s != std::string::npos) {
+            s += 17;
+            size_t e = resp.find('"', s);
+            if (e != std::string::npos) {
+                AccountToken = resp.substr(s, e - s);
+                SaveAccountToken(AccountToken);
+            }
+        }
     }
     else if (message == "missing_key") {
         RegistrationStatus = T("ui.registration_missing_key");

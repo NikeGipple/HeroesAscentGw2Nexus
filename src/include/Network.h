@@ -33,4 +33,6 @@ void SendPlayerUpdate(PlayerEventType eventType);
 void CheckServerStatus();
 std::string LoadAccountToken();
 void SaveAccountToken(const std::string& token);
+void DeleteAccountToken();
+void CheckAccountToken();
 

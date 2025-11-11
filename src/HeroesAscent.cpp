@@ -66,9 +66,20 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
         if (!AccountToken.empty()) {
             RegistrationStatus = T("ui.registration_already");
             RegistrationColor = ColorSuccess;
-            //if (APIDefs)
-            //    APIDefs->Log(ELogLevel_INFO, "Network", ("Loaded existing AccountToken: " + AccountToken).c_str());
+
+            static bool tokenCheckDone = false; // evitiamo di ripeterlo
+
+            aApi->Renderer.Register(ERenderType_Render, []() {
+                if (!RTAPIData || RTAPIData->AccountName[0] == '\0') return;
+                static bool tokenChecked = false;
+                if (!tokenChecked) {
+                    std::thread(CheckAccountToken).detach();
+                    tokenChecked = true;
+                }
+                });
+
         }
+
 
         if (APIDefs) {
             APIDefs->Log(ELogLevel_INFO, "Network", "Calling CheckServerStatus() after InitNetwork...");
@@ -253,6 +264,11 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
                 ImGui::TextColored(ServerColor, "%s", ServerStatus.c_str());
 
+                /* === Stato del personaggio === */
+                if (!CharacterStatus.empty()) {
+                    ImGui::TextColored(CharacterColor, "%s: %s", T("ui.character_status"), CharacterStatus.c_str());
+                }
+
                 /* === Violazioni === */
                 if (!LastViolationTitle.empty()) {
                     ImGui::Separator();
@@ -322,7 +338,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.06");
+                ImGui::Text("version 0.07");
             }
             ImGui::End();
             });

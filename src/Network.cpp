@@ -14,6 +14,7 @@
 #include <iomanip>
 #include "json/json.hpp"
 #include "PlayerEventType.h"
+#include <cstdio>
 
 #pragma comment(lib, "winhttp.lib")
 
@@ -24,6 +25,8 @@ std::string RegistrationStatus = "Not registered";
 ImVec4      RegistrationColor = ImVec4(1, 1, 0, 1);
 std::string ServerStatus;
 ImVec4      ServerColor = ImVec4(1, 1, 0, 1);
+extern std::string CharacterStatus;
+extern ImVec4 CharacterColor;
 
 using json = nlohmann::json;
 
@@ -140,6 +143,70 @@ std::string LoadAccountToken() {
     return token;
 }
 
+void DeleteAccountToken() {
+    std::string path = GetAddonBasePath() + "\\accounttoken";
+
+    // Prova a cancellare il file
+    if (std::remove(path.c_str()) == 0) {
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_INFO, "Network", ("Deleted account token file at: " + path).c_str());
+    }
+    else {
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_WARNING, "Network", ("Failed to delete account token file at: " + path).c_str());
+    }
+}
+
+void CheckAccountToken() {
+    std::string token = LoadAccountToken();
+    if (token.empty()) {
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_INFO, "Network", "No account token found — registration required.");
+        return;
+    }
+
+    CheckServerStatus();
+    if (ServerStatus == "Server offline") {
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_WARNING, "Network", "Server offline — skipping token validation.");
+        RegistrationStatus = T("ui.server_unreachable");
+        RegistrationColor = ColorWarning;
+        return; 
+    }
+
+    std::string accountName;
+    if (RTAPIData && RTAPIData->AccountName[0] != '\0') {
+        accountName = RTAPIData->AccountName;
+    }
+
+    std::ostringstream payload;
+    payload << "{"
+        << "\"account_token\":\"" << token << "\","
+        << "\"account_name\":\"" << accountName << "\""
+        << "}";
+
+
+    std::string resp;
+    HttpPostJSON(L"heroesascent.org", L"/api/account/check", payload.str(), resp);
+
+    if (APIDefs)
+        APIDefs->Log(ELogLevel_INFO, "Network", ("Token check response: " + resp).c_str());
+
+    // Analizziamo la risposta grezza
+    if (resp.find("\"result\":true") != std::string::npos) {
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_INFO, "Network", "Account token validated successfully.");
+    }
+    else {
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_WARNING, "Network", "Invalid account token — deleting local token...");
+        DeleteAccountToken();
+        AccountToken.clear();
+        RegistrationStatus = T("ui.registration_required");
+        RegistrationColor = ColorWarning;
+    }
+}
+
 void SendRegistration() {
     if (ApiKey.empty()) {
         RegistrationStatus = T("ui.registration_missing_key");
@@ -165,7 +232,7 @@ void SendRegistration() {
     p << "}";
 
     std::string resp;
-    HttpPostJSON(L"heroesascent.org", L"/api/register", p.str(), resp, 70000);
+    HttpPostJSON(L"heroesascent.org", L"/api/account/register", p.str(), resp, 70000);
 
     if (APIDefs)
         APIDefs->Log(ELogLevel_INFO, "Network", ("Registration raw response: " + resp).c_str());
@@ -253,7 +320,6 @@ void SendRegistration() {
     }
 }
 
-
 void SendPlayerUpdate(PlayerEventType eventType) {
     if (!RTAPIData || AccountToken.empty()) return;
 
@@ -302,6 +368,16 @@ void SendPlayerUpdate(PlayerEventType eventType) {
             APIDefs->Log(ELogLevel_WARNING, "Network", "SendPlayerUpdate(): empty response");
         else
             APIDefs->Log(ELogLevel_INFO, "Network", ("SendPlayerUpdate() => " + resp).c_str());
+    }
+
+    // === Analisi risposta per disqualifica ===
+    if (resp.find("\"Character is disqualified\"") != std::string::npos) {
+        CharacterStatus = T("ui.character_disqualified");
+        CharacterColor = ColorError;
+    }
+    else if (resp.find("\"status\":\"ok\"") != std::string::npos) {
+        CharacterStatus = T("ui.character_valid");
+        CharacterColor = ColorSuccess;
     }
 }
 

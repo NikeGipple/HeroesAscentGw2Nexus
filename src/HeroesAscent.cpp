@@ -227,8 +227,11 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         std::thread(SendRegistration).detach();
                     }
 
-                    ImGui::NewLine();
-                    ImGui::TextColored(RegistrationColor, "%s", RegistrationStatus.c_str());
+                    // Mostra messaggio solo se esiste
+                    if (!RegistrationStatus.empty()) {
+                        ImGui::Dummy(ImVec2(0.0f, 2.0f)); 
+                        ImGui::TextColored(RegistrationColor, "%s", RegistrationStatus.c_str());
+                    }
                 }
 
                 else {
@@ -319,7 +322,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.04");
+                ImGui::Text("version 0.05");
             }
             ImGui::End();
             });

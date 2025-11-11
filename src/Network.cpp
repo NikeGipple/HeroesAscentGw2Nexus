@@ -179,6 +179,10 @@ void SendRegistration() {
         RegistrationStatus = T("ui.registration_missing_account_name");
         RegistrationColor = ColorWarning;
     }
+    else if (message == "gw2_invalid_api_key") {
+        RegistrationStatus = T("ui.registration_gw2_invalid_api_key");
+        RegistrationColor = ColorError;
+    }
     else if (message == "invalid_permissions") {
         RegistrationStatus = T("ui.registration_invalid_permissions");
         RegistrationColor = ColorError;

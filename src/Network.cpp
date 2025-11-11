@@ -122,39 +122,86 @@ void SendRegistration() {
         return;
     }
 
+    // Recupera il nome account da RTAPI se disponibile
+    std::string accountName;
+    if (RTAPIData && RTAPIData->AccountName[0] != '\0') {
+        accountName = RTAPIData->AccountName;
+    }
+
+    // Costruisce il payload JSON
     std::ostringstream p;
-    p << "{\"api_key\":\"" << ApiKey << "\"}";
+    p << "{"
+        << "\"api_key\":\"" << ApiKey << "\"";
+
+    if (!accountName.empty()) {
+        p << ",\"account_name\":\"" << accountName << "\"";
+    }
+
+    p << "}";
+
     std::string resp;
     HttpPostJSON(L"heroesascent.org", L"/api/register", p.str(), resp);
 
-    if (resp.find("\"status\":\"ok\"") != std::string::npos) {
-        RegistrationStatus = T("ui.registration_success");
-        RegistrationColor = ColorSuccess;
+    if (APIDefs)
+        APIDefs->Log(ELogLevel_INFO, "Network", ("Registration raw response: " + resp).c_str());
 
-        size_t s = resp.find("\"account_token\":\"");
-        if (s != std::string::npos) {
-            s += 17;
-            size_t e = resp.find('"', s);
-            AccountToken = resp.substr(s, e - s);
-            SaveAccountToken(AccountToken);
+    if (resp.empty()) {
+        RegistrationStatus = T("ui.registration_no_response");
+        RegistrationColor = ColorError;
+        return;
+    }
+
+    // === Estrae il campo "message" dal JSON ===
+    std::string message;
+    size_t pos = resp.find("\"message\":\"");
+    if (pos != std::string::npos) {
+        pos += 11; // salta "message":" 
+        size_t end = resp.find('"', pos);
+        if (end != std::string::npos) {
+            message = resp.substr(pos, end - pos);
         }
     }
-    else if (resp.find("already_registered") != std::string::npos) {
-        RegistrationStatus = T("ui.registration_already");
+
+    // === Interpreta il messaggio ===
+    if (message == "registered") {
+        RegistrationStatus = T("ui.registration_registered");
+        RegistrationColor = ColorSuccess;
+    }
+    else if (message == "already_registered") {
+        RegistrationStatus = T("ui.registration_already_registered");
         RegistrationColor = ColorWarning;
     }
-    else if (resp.empty()) {
-        RegistrationStatus = T("ui.registration_no_response");
+    else if (message == "missing_key") {
+        RegistrationStatus = T("ui.registration_missing_key");
+        RegistrationColor = ColorWarning;
+    }
+    else if (message == "missing_account_name") {
+        RegistrationStatus = T("ui.registration_missing_account_name");
+        RegistrationColor = ColorWarning;
+    }
+    else if (message == "invalid_permissions") {
+        RegistrationStatus = T("ui.registration_invalid_permissions");
+        RegistrationColor = ColorError;
+    }
+    else if (message == "account_mismatch") {
+        RegistrationStatus = T("ui.registration_account_mismatch");
+        RegistrationColor = ColorError;
+    }
+    else if (message == "too_many_ap") {
+        RegistrationStatus = T("ui.registration_too_many_ap");
+        RegistrationColor = ColorError;
+    }
+    else if (message == "gw2_api_error" || message == "gw2_api_unavailable" || message == "gw2_api_down") {
+        RegistrationStatus = T("ui.registration_gw2_api_error");
         RegistrationColor = ColorError;
     }
     else {
+        // Fallback
         RegistrationStatus = T("ui.registration_failed");
         RegistrationColor = ColorError;
     }
-
-    if (APIDefs)
-        APIDefs->Log(ELogLevel_INFO, "Network", ("Registration result: " + resp).c_str());
 }
+
 
 void SendPlayerUpdate(PlayerEventType eventType) {
     if (!RTAPIData || AccountToken.empty()) return;

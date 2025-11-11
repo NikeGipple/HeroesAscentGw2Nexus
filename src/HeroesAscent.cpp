@@ -227,7 +227,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         std::thread(SendRegistration).detach();
                     }
 
-                    ImGui::SameLine();
+                    ImGui::NewLine();
                     ImGui::TextColored(RegistrationColor, "%s", RegistrationStatus.c_str());
                 }
 
@@ -319,7 +319,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.03");
+                ImGui::Text("version 0.04");
             }
             ImGui::End();
             });

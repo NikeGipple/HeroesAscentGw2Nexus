@@ -266,7 +266,8 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
                 /* === Stato del personaggio === */
                 if (!CharacterStatus.empty()) {
-                    ImGui::TextColored(CharacterColor, "%s: %s", T("ui.character_status"), CharacterStatus.c_str());
+                    std::string key = "ui.character_" + CharacterStatus;
+                    ImGui::TextColored(CharacterColor, "%s: %s", T("ui.character_status"), T(key.c_str()));
                 }
 
                 /* === Violazioni === */
@@ -338,7 +339,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.07");
+                ImGui::Text("version 0.08");
             }
             ImGui::End();
             });

@@ -372,12 +372,15 @@ void SendPlayerUpdate(PlayerEventType eventType) {
 
     // === Analisi risposta per disqualifica ===
     if (resp.find("\"Character is disqualified\"") != std::string::npos) {
-        CharacterStatus = T("ui.character_disqualified");
+        CharacterStatus = "disqualified";
         CharacterColor = ColorError;
     }
     else if (resp.find("\"status\":\"ok\"") != std::string::npos) {
-        CharacterStatus = T("ui.character_valid");
+        CharacterStatus = "valid";
         CharacterColor = ColorSuccess;
+    }
+    else {
+        CharacterStatus.clear();
     }
 }
 

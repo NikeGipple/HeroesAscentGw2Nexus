@@ -58,7 +58,7 @@ void OnArcCombat(void* data, const char* sourceArea) {
                 5505,   // Elementalist
                 12452,  // Ranger
                 13064,  // Thief
-                21750,  // Necromancer
+                10548,  // Necromancer
                 // Revenant → ti aggiungo gli ID se vuoi
             };
 

@@ -1,8 +1,10 @@
-// ArcIntegration.cpp
+﻿// ArcIntegration.cpp
 #include "ArcIntegration.h"
 #include "Globals.h"
 #include <string>
 #include <thread>
+#include <unordered_set>
+#include "Network.h"
 
 extern AddonAPI* APIDefs;
 
@@ -31,6 +33,44 @@ void OnArcCombat(void* data, const char* sourceArea) {
 
         APIDefs->Log(ELogLevel_INFO, "ArcIntegration", msg);
     }
+
+    // === Rilevazione Skill 6 (cura attiva) ===
+    if (e->src && e->src->self == 1) {
+
+        // Deve essere un evento di attivazione
+        if (e->ev->is_activation != 0) {
+
+            uint32_t skillId = e->ev->skillid;
+
+            // Debug
+            char logMsg[512];
+            sprintf_s(logMsg,
+                "[HEAL ACTIVATION CHECK] skillid: %u, skillname: %s",
+                skillId,
+                (e->skillname ? e->skillname : "(unknown)"));
+            APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", logMsg);
+
+            // Skill 6 ID list
+            static std::unordered_set<uint32_t> HealSkillIDs = {
+                9080,   // Guardian
+                5503,   // Mesmer
+                5857,   // Engineer
+                5505,   // Elementalist
+                12452,  // Ranger
+                13064,  // Thief
+                21750,  // Necromancer
+                // Revenant → ti aggiungo gli ID se vuoi
+            };
+
+            if (HealSkillIDs.count(skillId)) {
+
+                APIDefs->Log(ELogLevel_WARNING, "ArcIntegration",
+                    "[VIOLATION] Player used healing skill 6!");
+
+                SendPlayerUpdate(PlayerEventType::HEALING_USED);
+            }
+        }
+    }
 }
 
 /* === Inizializzazione ArcDPS Integration === */
@@ -40,7 +80,7 @@ void InitArcIntegration(AddonAPI* api) {
 
     api->Log(ELogLevel_INFO, "ArcIntegration", "Initializing ArcDPS combat event hooks...");
 
-    // Prova a collegarsi direttamente agli eventi se ArcDPS � caricato
+    // Prova a collegarsi direttamente agli eventi se ArcDPS è caricato
     try {
         api->Events.Subscribe("EV_ARCDPS_COMBATEVENT_LOCAL_RAW", [](void* data) {
             OnArcCombat(data, "LOCAL");

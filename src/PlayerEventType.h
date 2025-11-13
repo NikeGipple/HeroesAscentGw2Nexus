@@ -6,7 +6,8 @@
         DEAD,
         RESPAWN,
         MAP_CHANGED,
-        MOUNT_CHANGED 
+        MOUNT_CHANGED,
+        HEALING_USED
     };
 
     inline const char* ToString(PlayerEventType type) {
@@ -16,6 +17,7 @@
         case PlayerEventType::DEAD:          return "DEAD";
         case PlayerEventType::MAP_CHANGED:   return "MAP_CHANGED";
         case PlayerEventType::MOUNT_CHANGED: return "MOUNT_CHANGED";
+        case PlayerEventType::HEALING_USED:  return "HEALING_USED"; 
         default:                             return "UNKNOWN";
         }
     }

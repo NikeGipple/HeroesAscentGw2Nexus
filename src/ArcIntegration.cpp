@@ -52,14 +52,66 @@ void OnArcCombat(void* data, const char* sourceArea) {
 
             // Skill 6 ID list
             static std::unordered_set<uint32_t> HealSkillIDs = {
-                9080,   // Guardian
-                5503,   // Mesmer
-                5857,   // Engineer
-                5505,   // Elementalist
-                12452,  // Ranger
-                13064,  // Thief
-                10548,  // Necromancer
-                // Revenant → ti aggiungo gli ID se vuoi
+                9102,   // Guardian Shelter
+                21664,  // Guardian Litany of Wrath
+                9083,   // Guardian Receive the Light!
+                9158,   // Guardian Signet of Resolve
+
+                26937,  // Revenant Enchanted Daggers
+				29148,  // Revenant Ventari - Project Tranquility
+                28427,  // Revenant Ventari's Will
+                28219,  // Revenant Empowering Misery
+                28219,  // Revenant Soothing Stone
+
+				14401,  // Warrior Mending
+                14402,  // Warrior To the Limit!
+                14389,  // Warrior Healing Signet
+                21815,  // Warrior Defiant Stance
+
+                5834,   // Engineer Elixir H
+                5802,   // Engineer Med Kit
+                21659,  // Engineer A.E.D.
+                30881,  // Engineer A.E.D.
+                5980,   // Engineer Cleansing Burst
+                5857,   // Engineer Healing Turret
+                5857,   // Engineer Detonate Healing Turret
+
+                31914,  // Ranger We Heal As One!
+				21773,  // Ranger Water Spirit
+                21776,  // Ranger - Water Spirit - Aqua Surge
+                12483,  // Ranger Troll Unguent
+                12489,  // Ranger Healing Spring
+
+                13027,  // Thief Hide in Shadows
+                13050,  // Thief Signet of Malice
+                13021,  // Thief Withdraw
+                21778,  // Thief Skelk Venom
+
+                21656,  // Elementalist Arcane Brilliance
+                5507,   // Elementalist Ether Renewal
+                5503,   // Elementalist Signet of Restoration
+				5569,   // Elementalist Glyph of Elemental Harmony
+                34743,  // Glyph of Elemental Harmony(fire)
+                34651,  // Glyph of Elemental Harmony(water)
+                34724,  // Glyph of Elemental Harmony(air)
+                34609,  // Glyph of Elemental Harmony(earth)
+
+                10176,  // Mesmer Ether Feast
+                10177,  // Mesmer Mirror
+                10213,  // Mesmer Mantra of Recovery
+                10214,  // Mesmer Power Return
+                21750,  // Mesmer Signet of the Ether
+
+                10548,  // Necromancer Consume Conditions
+				10547,  // Necromancer Summon Blood Fiend
+                10577,  // Necromancer Taste of Death
+                21762,  // Necromancer Signet of Vampirism
+                60625,  // Necromancer Signet of Vampirism
+				10527,  // Necromancer Well of Blood
+                10670,  // Necromancer Well of Blood
+
+                12360,  // Human Prayer to Dwayna
+                12440,  // Sylvari Healing Seed
             };
 
             if (HealSkillIDs.count(skillId)) {

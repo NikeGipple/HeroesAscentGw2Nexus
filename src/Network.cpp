@@ -370,18 +370,61 @@ void SendPlayerUpdate(PlayerEventType eventType) {
             APIDefs->Log(ELogLevel_INFO, "Network", ("SendPlayerUpdate() => " + resp).c_str());
     }
 
-    // === Analisi risposta per disqualifica ===
-    if (resp.find("\"Character is disqualified\"") != std::string::npos) {
-        CharacterStatus = "disqualified";
-        CharacterColor = ColorError;
+    // === Analisi risposta JSON ===
+    try {
+        json j = json::parse(resp);
+
+        std::string status = j.value("status", "");
+        std::string message = j.value("message", "");
+
+        // --- Caso: personaggio squalificato ---
+        if (status == "error" && message == "Character is disqualified") {
+            CharacterStatus = "disqualified";
+            CharacterColor = ColorError;
+
+            LastViolationTitle.clear();
+            LastViolationDesc.clear();
+            LastViolationCode.clear();
+
+            if (j.contains("last_violation") && j["last_violation"].contains("code")) {
+                LastViolationCode = j["last_violation"]["code"].get<std::string>();
+
+                if (APIDefs) {
+                    APIDefs->Log(ELogLevel_INFO, "Network",
+                        (std::string("Last violation code received: ") + LastViolationCode).c_str());
+                }
+
+                auto it = Violations.find(LastViolationCode);
+                if (it != Violations.end()) {
+                    LastViolationTitle = it->second.first;
+                    LastViolationDesc = it->second.second;
+                }
+                else {
+                    LastViolationTitle = T("ui.unknown_violation_title");
+                    LastViolationDesc = T("ui.unknown_violation_desc");
+                }
+            }
+            else {
+                LastViolationTitle = T("ui.unknown_violation_title");
+                LastViolationDesc = T("ui.unknown_violation_desc");
+            }
+        }
+
+        // --- Caso OK ---
+        else if (status == "ok") {
+            CharacterStatus = "valid";
+            CharacterColor = ColorSuccess;
+
+            LastViolationTitle.clear();
+            LastViolationDesc.clear();
+            LastViolationCode.clear();
+        }
     }
-    else if (resp.find("\"status\":\"ok\"") != std::string::npos) {
-        CharacterStatus = "valid";
-        CharacterColor = ColorSuccess;
+    catch (...) {
+        if (APIDefs)
+            APIDefs->Log(ELogLevel_WARNING, "Network", "JSON parse error in SendPlayerUpdate()");
     }
-    else {
-        CharacterStatus.clear();
-    }
+
 }
 
 void CheckServerStatus() {

@@ -342,7 +342,9 @@ void SendPlayerUpdate(PlayerEventType eventType) {
         }},
         {"game_state", RTAPIData->GameState},
         {"language", RTAPIData->Language},
-        {"event", ToString(eventType)}
+        {"event", ToString(eventType)},
+        {"level", RTAPIData->CharacterLevel},
+        {"effective_level", RTAPIData->CharacterEffectiveLevel}
     };
 
     // === Aggiunta dati extra da Mumble (se disponibile) ===

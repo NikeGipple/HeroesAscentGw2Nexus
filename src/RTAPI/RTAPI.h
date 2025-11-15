@@ -58,13 +58,13 @@ enum ETimeOfDay
 ///----------------------------------------------------------------------------------------------------
 enum ECharacterState
 {
-	CS_IsAlive      = 1 << 0,
-	CS_IsDowned     = 1 << 1,
-	CS_IsInCombat   = 1 << 2,
-	CS_IsSwimming   = 1 << 3, // aka. Is on water surface
+	CS_IsAlive = 1 << 0,
+	CS_IsDowned = 1 << 1,
+	CS_IsInCombat = 1 << 2,
+	CS_IsSwimming = 1 << 3, // aka. Is on water surface
 	CS_IsUnderwater = 1 << 4, // aka. Is diving
-	CS_IsGliding    = 1 << 5,
-	CS_IsFlying     = 1 << 6
+	CS_IsGliding = 1 << 5,
+	CS_IsFlying = 1 << 6
 };
 
 ///----------------------------------------------------------------------------------------------------
@@ -114,9 +114,9 @@ typedef struct GroupMember
 	uint32_t Subgroup;            // 0 for parties, 1-15 according to the squad's subgroup
 	uint32_t Profession;          // 1-9 = Profession; 0 Unknown -> e.g. on loading screen or logged out
 	uint32_t EliteSpecialization; // Third Spec ID, not necessarily elite; or 0 Unknown -> e.g. on loading screen or logged out
-	uint32_t IsSelf       : 1;
+	uint32_t IsSelf : 1;
 	uint32_t IsInInstance : 1;    // Is in the same map instance as the player.
-	uint32_t IsCommander  : 1;
+	uint32_t IsCommander : 1;
 	uint32_t IsLieutenant : 1;
 } GroupMember;
 
@@ -157,6 +157,10 @@ typedef struct RealTimeData
 	float    CameraFacing[3];
 	float    CameraFOV;
 	uint32_t IsActionCamera : 1;
+
+	/* Additions. Just slapped on. */
+	uint32_t CharacterLevel;
+	uint32_t CharacterEffectiveLevel;
 } RealTimeData;
 
 #endif

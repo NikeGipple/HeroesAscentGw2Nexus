@@ -128,6 +128,8 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     const uint32_t mapPrev = lastSnapshot.MapID;
                     const uint32_t mountNow = RTAPIData->MountIndex;
                     const uint32_t mountPrev = lastSnapshot.MountIndex;
+                    const uint32_t levelNow = RTAPIData->CharacterLevel;
+                    const uint32_t levelPrev = lastSnapshot.CharacterLevel;
 
                     const std::string currentName = RTAPIData->CharacterName ? RTAPIData->CharacterName : "";
                     const bool isNewCharacter = (!lastCharacterName.empty() && currentName != lastCharacterName);
@@ -159,10 +161,15 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         SendPlayerUpdate(PlayerEventType::MAP_CHANGED);
                         lastSnapshot.MapID = mapNow;
                     }
+
                     // === MOUNT CHANGED ===
                     else if (mountNow != mountPrev) {
                         SendPlayerUpdate(PlayerEventType::MOUNT_CHANGED);
                         lastSnapshot.MountIndex = mountNow;
+                    }
+                    else if (levelNow != levelPrev && levelNow > 0) {
+                        SendPlayerUpdate(PlayerEventType::LEVEL_UP);
+                        lastSnapshot.CharacterLevel = levelNow;
                     }
                 }
             }
@@ -339,7 +346,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.09");
+                ImGui::Text("version 0.11");
             }
             ImGui::End();
             });

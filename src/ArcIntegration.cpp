@@ -19,20 +19,20 @@ void OnArcCombat(void* data, const char* sourceArea) {
     const char* skill = (e->skillname && strlen(e->skillname)) ? e->skillname : "(no skill)";
 
     // Esempio semplice: logga solo gli eventi di danno positivi
-    if (e->ev->value > 0 && e->src && e->src->self == 1) {
-        char msg[512];
-        sprintf_s(msg,
-            "[%s] %s hit %s for %d dmg (Skill: %s - ID: %u)",
-            sourceArea,
-            src,
-            dst,
-            e->ev->value,
-            skill,
-            e->ev->skillid
-        );
+    //if (e->ev->value > 0 && e->src && e->src->self == 1) {
+    //    char msg[512];
+    //    sprintf_s(msg,
+    //        "[%s] %s hit %s for %d dmg (Skill: %s - ID: %u)",
+    //        sourceArea,
+    //        src,
+    //        dst,
+    //        e->ev->value,
+    //        skill,
+    //        e->ev->skillid
+    //    );
 
-        APIDefs->Log(ELogLevel_INFO, "ArcIntegration", msg);
-    }
+    //    APIDefs->Log(ELogLevel_INFO, "ArcIntegration", msg);
+    //}
 
     // === Rilevazione Skill 6 (cura attiva) ===
     if (e->src && e->src->self == 1) {

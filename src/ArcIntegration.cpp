@@ -8,13 +8,44 @@
 
 extern AddonAPI* APIDefs;
 
+void RawDump(void* data, const char* area)
+{
+    if (!data) return;
+
+    unsigned char* bytes = reinterpret_cast<unsigned char*>(data);
+    const size_t dumpSize = 256; // aumenta se vuoi
+
+    char buffer[4096];
+    char* out = buffer;
+
+    // Prima riga
+    out += sprintf_s(out, buffer + sizeof(buffer) - out,
+        "[RAW DUMP] area=%s ptr=%p\n",
+        area, data);
+
+    // Hex dump
+    for (size_t i = 0; i < dumpSize; ++i) {
+
+        if (i % 16 == 0) {
+            out += sprintf_s(out, buffer + sizeof(buffer) - out,
+                "\n%04zu: ", i);
+        }
+
+        out += sprintf_s(out, buffer + sizeof(buffer) - out,
+            "%02X ", bytes[i]);
+    }
+
+    // Log finale
+    APIDefs->Log(ELogLevel_DEBUG, "ArcDump", buffer);
+}
+
 void OnBuffApplied(uint32_t buffId, const char* buffName) {
-    char msg[256];
-    sprintf_s(msg, "[BUFF DETECTED] buffId=%u | name=%s",
-        buffId,
-        (buffName ? buffName : "(unknown)")
-    );
-    APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", msg);
+    //char msg[256];
+    //sprintf_s(msg, "[BUFF DETECTED] buffId=%u | name=%s",
+    //    buffId,
+    //    (buffName ? buffName : "(unknown)")
+    //);
+    //APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", msg);
 
     SendPlayerUpdate(PlayerEventType::BUFF_APPLIED, buffId, buffName);
 }
@@ -24,6 +55,28 @@ void OnArcCombat(void* data, const char* sourceArea) {
     if (!data) return;
     EvCombatData* e = static_cast<EvCombatData*>(data);
     if (!e || !e->ev) return;
+
+    // === LOG RAW LEGGIBILE ===
+    char msg[512];
+    sprintf_s(msg,
+        "[ARC RAW] AREA=%s | skillid=%u | skillname=%s | buff=%u | is_statechange=%u | is_activation=%u | buffremove=%u | value=%d | src(self=%u,name=%s,id=%llu) | dst(self=%u,name=%s,id=%llu)",
+        sourceArea,
+        e->ev->skillid,
+        (e->skillname ? e->skillname : "(null)"),
+        e->ev->buff,
+        e->ev->is_statechange,
+        e->ev->is_activation,
+        e->ev->is_buffremove,
+        e->ev->value,
+        (e->src ? e->src->self : 0),
+        (e->src && e->src->name ? e->src->name : "(null)"),
+        (e->src ? e->src->id : 0),
+        (e->dst ? e->dst->self : 0),
+        (e->dst && e->dst->name ? e->dst->name : "(null)"),
+        (e->dst ? e->dst->id : 0)
+    );
+
+    APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", msg);
 
     const char* src = (e->src && e->src->name && strlen(e->src->name)) ? e->src->name : "(unknown)";
     const char* dst = (e->dst && e->dst->name && strlen(e->dst->name)) ? e->dst->name : "(unknown)";
@@ -127,38 +180,39 @@ void OnArcCombat(void* data, const char* sourceArea) {
 
             if (HealSkillIDs.count(skillId)) {
 
-                APIDefs->Log(ELogLevel_WARNING, "ArcIntegration",
-                    "[VIOLATION] Player used healing skill 6!");
+                //APIDefs->Log(ELogLevel_WARNING, "ArcIntegration",
+                //    "[VIOLATION] Player used healing skill 6!");
 
                 SendPlayerUpdate(PlayerEventType::HEALING_USED);
             }
         }
     }
 
+
     // === Rilevazione BUFF applicati al giocatore ===
-    if (e->ev->buff == 1 &&
-        e->dst && e->dst->self == 1 &&
-        e->ev->is_statechange == 0 &&
-        e->ev->is_activation == 0)
+    bool isBuffApply =
+        (e->ev->buff == 1 && e->ev->is_statechange == 0) ||
+        (e->ev->is_statechange == 41);
+
+    if (isBuffApply && e->ev->is_activation == 0)
     {
         const char* buffName = e->skillname ? e->skillname : "";
         uint32_t buffId = e->ev->skillid;
 
-        // Filtra solo cibo e utility
-        if (strcmp(buffName, "Nourishment") == 0 ||
-            strcmp(buffName, "Enhancement") == 0 ||
-            strcmp(buffName, "Reinforced") == 0)
+        // Filtra Nourishment / Enhancement per SELF
+        if ((strcmp(buffName, "Nourishment") == 0 ||
+            strcmp(buffName, "Enhancement") == 0) &&
+            e->dst && e->dst->self == 1)
         {
             OnBuffApplied(buffId, buffName);
         }
+        else if (buffId == 9283)  // Reinforced Armor → NON serve dst->self
+        {
+            OnBuffApplied(9283, "Reinforced Armor");
+        }
     }
 
-
 }
-
-
-
-
 
 /* === Inizializzazione ArcDPS Integration === */
 void InitArcIntegration(AddonAPI* api) {

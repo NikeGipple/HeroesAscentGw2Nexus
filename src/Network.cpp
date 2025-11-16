@@ -320,7 +320,11 @@ void SendRegistration() {
     }
 }
 
-void SendPlayerUpdate(PlayerEventType eventType) {
+void SendPlayerUpdate(
+    PlayerEventType eventType,
+    uint32_t buffId,
+    const char* buffName)
+{
     if (!RTAPIData || AccountToken.empty()) return;
 
     // === Costruzione JSON completo ===
@@ -357,6 +361,13 @@ void SendPlayerUpdate(PlayerEventType eventType) {
                 payload["commander"] = id.value("commander", false);
                 payload["team_color_id"] = id.value("team_color_id", -1);
             }
+        }
+    }
+
+    if (eventType == PlayerEventType::BUFF_APPLIED && buffId != 0) {
+        payload["buff_id"] = buffId;
+        if (buffName && buffName[0] != '\0') {
+            payload["buff_name"] = buffName;
         }
     }
 

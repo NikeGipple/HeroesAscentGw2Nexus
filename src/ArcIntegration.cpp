@@ -8,6 +8,17 @@
 
 extern AddonAPI* APIDefs;
 
+void OnBuffApplied(uint32_t buffId, const char* buffName) {
+    char msg[256];
+    sprintf_s(msg, "[BUFF DETECTED] buffId=%u | name=%s",
+        buffId,
+        (buffName ? buffName : "(unknown)")
+    );
+    APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", msg);
+
+    SendPlayerUpdate(PlayerEventType::BUFF_APPLIED, buffId, buffName);
+}
+
 /* === Callback per gli eventi di combattimento === */
 void OnArcCombat(void* data, const char* sourceArea) {
     if (!data) return;
@@ -123,7 +134,31 @@ void OnArcCombat(void* data, const char* sourceArea) {
             }
         }
     }
+
+    // === Rilevazione BUFF applicati al giocatore ===
+    if (e->ev->buff == 1 &&
+        e->dst && e->dst->self == 1 &&
+        e->ev->is_statechange == 0 &&
+        e->ev->is_activation == 0)
+    {
+        const char* buffName = e->skillname ? e->skillname : "";
+        uint32_t buffId = e->ev->skillid;
+
+        // Filtra solo cibo e utility
+        if (strcmp(buffName, "Nourishment") == 0 ||
+            strcmp(buffName, "Enhancement") == 0 ||
+            strcmp(buffName, "Reinforced") == 0)
+        {
+            OnBuffApplied(buffId, buffName);
+        }
+    }
+
+
 }
+
+
+
+
 
 /* === Inizializzazione ArcDPS Integration === */
 void InitArcIntegration(AddonAPI* api) {

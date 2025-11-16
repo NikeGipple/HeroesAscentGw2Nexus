@@ -29,7 +29,11 @@ extern RealTimeData* RTAPIData;
 // Funzioni
 void InitNetwork(AddonAPI* api);
 void SendRegistration();
-void SendPlayerUpdate(PlayerEventType eventType);
+void SendPlayerUpdate(
+    PlayerEventType eventType,
+    uint32_t buffId = 0,
+    const char* buffName = nullptr);
+
 void CheckServerStatus();
 std::string LoadAccountToken();
 void SaveAccountToken(const std::string& token);

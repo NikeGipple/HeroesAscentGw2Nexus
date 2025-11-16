@@ -28,7 +28,7 @@ std::string GetAddonBasePath() {
     // Forza sempre il percorso alla sottocartella del modulo
     basePath += "\\HeroesAscentGw2Nexus";
 
-    if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Localization", ("Base path: " + basePath).c_str());
+    /*if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Localization", ("Base path: " + basePath).c_str());*/
 
 
     return basePath;

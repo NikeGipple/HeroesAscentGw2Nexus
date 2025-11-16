@@ -131,16 +131,30 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     const uint32_t levelNow = RTAPIData->CharacterLevel;
                     const uint32_t levelPrev = lastSnapshot.CharacterLevel;
 
-                    const std::string currentName = RTAPIData->CharacterName ? RTAPIData->CharacterName : "";
-                    const bool isNewCharacter = (!lastCharacterName.empty() && currentName != lastCharacterName);
+                    // Nome corrente del personaggio 
+                    const std::string currentName =
+                        (RTAPIData->CharacterName && RTAPIData->CharacterName[0] != '\0')
+                        ? RTAPIData->CharacterName
+                        : "";
 
-                    // === LOGIN ===
-                    if ((!firstLoginSent && !currentName.empty()) || isNewCharacter) {
+                    // === LOGIN  ===
+                    if (RTAPIData->GameState == GS_CharacterSelection ||
+                        RTAPIData->GameState == GS_CharacterCreation)
+                    {
+                        firstLoginSent = false;
+                    }
+
+                    if (!firstLoginSent &&
+                        RTAPIData->GameState == GS_Gameplay &&
+                        !currentName.empty())
+                    {
+                        SendPlayerUpdate(PlayerEventType::LOGIN);
                         firstLoginSent = true;
                         lastCharacterName = currentName;
-                        SendPlayerUpdate(PlayerEventType::LOGIN);
                         lastSnapshot = *RTAPIData;
                     }
+
+
                     // === DOWNED ===
                     else if (nowDowned && !prevDowned) {
                         SendPlayerUpdate(PlayerEventType::DOWNED);
@@ -346,7 +360,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.11");
+                ImGui::Text("version 0.12");
             }
             ImGui::End();
             });

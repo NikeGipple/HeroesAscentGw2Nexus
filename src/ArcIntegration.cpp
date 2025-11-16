@@ -57,26 +57,26 @@ void OnArcCombat(void* data, const char* sourceArea) {
     if (!e || !e->ev) return;
 
     // === LOG RAW LEGGIBILE ===
-    char msg[512];
-    sprintf_s(msg,
-        "[ARC RAW] AREA=%s | skillid=%u | skillname=%s | buff=%u | is_statechange=%u | is_activation=%u | buffremove=%u | value=%d | src(self=%u,name=%s,id=%llu) | dst(self=%u,name=%s,id=%llu)",
-        sourceArea,
-        e->ev->skillid,
-        (e->skillname ? e->skillname : "(null)"),
-        e->ev->buff,
-        e->ev->is_statechange,
-        e->ev->is_activation,
-        e->ev->is_buffremove,
-        e->ev->value,
-        (e->src ? e->src->self : 0),
-        (e->src && e->src->name ? e->src->name : "(null)"),
-        (e->src ? e->src->id : 0),
-        (e->dst ? e->dst->self : 0),
-        (e->dst && e->dst->name ? e->dst->name : "(null)"),
-        (e->dst ? e->dst->id : 0)
-    );
+    //char msg[512];
+    //sprintf_s(msg,
+    //    "[ARC RAW] AREA=%s | skillid=%u | skillname=%s | buff=%u | is_statechange=%u | is_activation=%u | buffremove=%u | value=%d | src(self=%u,name=%s,id=%llu) | dst(self=%u,name=%s,id=%llu)",
+    //    sourceArea,
+    //    e->ev->skillid,
+    //    (e->skillname ? e->skillname : "(null)"),
+    //    e->ev->buff,
+    //    e->ev->is_statechange,
+    //    e->ev->is_activation,
+    //    e->ev->is_buffremove,
+    //    e->ev->value,
+    //    (e->src ? e->src->self : 0),
+    //    (e->src && e->src->name ? e->src->name : "(null)"),
+    //    (e->src ? e->src->id : 0),
+    //    (e->dst ? e->dst->self : 0),
+    //    (e->dst && e->dst->name ? e->dst->name : "(null)"),
+    //    (e->dst ? e->dst->id : 0)
+    //);
 
-    APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", msg);
+    //APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", msg);
 
     const char* src = (e->src && e->src->name && strlen(e->src->name)) ? e->src->name : "(unknown)";
     const char* dst = (e->dst && e->dst->name && strlen(e->dst->name)) ? e->dst->name : "(unknown)";
@@ -107,12 +107,12 @@ void OnArcCombat(void* data, const char* sourceArea) {
             uint32_t skillId = e->ev->skillid;
 
             // Debug
-            char logMsg[512];
-            sprintf_s(logMsg,
-                "[HEAL ACTIVATION CHECK] skillid: %u, skillname: %s",
-                skillId,
-                (e->skillname ? e->skillname : "(unknown)"));
-            APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", logMsg);
+            //char logMsg[512];
+            //sprintf_s(logMsg,
+            //    "[HEAL ACTIVATION CHECK] skillid: %u, skillname: %s",
+            //    skillId,
+            //    (e->skillname ? e->skillname : "(unknown)"));
+            //APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", logMsg);
 
             // Skill 6 ID list
             static std::unordered_set<uint32_t> HealSkillIDs = {

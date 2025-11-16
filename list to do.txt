@@ -1,6 +1,7 @@
 group
 food 
 enancement
-skill in barra
+skill bannati
+tratti bannati
 
  

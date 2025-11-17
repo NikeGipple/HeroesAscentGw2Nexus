@@ -95,6 +95,13 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             if (!RTAPIData)
                 RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
 
+            static bool logged = false;
+            if (!logged && MumbleLink::gMumble && MumbleLink::gMumble->UITick > 0)
+            {
+                MumbleLink::LogIdentity();
+                logged = true;
+            }
+
             static uint64_t lastTick = 0;
             static RealTimeData lastSnapshot{};
             static bool snapshotInit = false;

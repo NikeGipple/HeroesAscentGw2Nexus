@@ -6,7 +6,7 @@
 #include <winhttp.h>
 #include <map>
 #include "RTAPI/RTAPI.h"
-#include "mumble/Mumble.h"
+#include "MumbleLink.h"
 #include "UIColors.h"
 #include "Localization.h"
 #include <fstream>
@@ -351,18 +351,21 @@ void SendPlayerUpdate(
         {"effective_level", RTAPIData->CharacterEffectiveLevel}
     };
 
-    // === Aggiunta dati extra da Mumble (se disponibile) ===
-    if (GW2MumbleLink* m = GetData()) {
-        const std::string identityUtf8 = WideToUtf8(m->identity);
-        if (!identityUtf8.empty()) {
-            nlohmann::json id = nlohmann::json::parse(identityUtf8, nullptr, false);
-            if (!id.is_discarded()) {
+    if (const Mumble::Data* m = MumbleLink::GetData())
+    {
+        std::string idStr = WideToUtf8(m->Identity);
+
+        if (!idStr.empty())
+        {
+            json id = json::parse(idStr, nullptr, false);
+
+            if (!id.is_discarded())
+            {
                 payload["race"] = id.value("race", -1);
-                payload["commander"] = id.value("commander", false);
-                payload["team_color_id"] = id.value("team_color_id", -1);
             }
         }
     }
+
 
     if (eventType == PlayerEventType::BUFF_APPLIED && buffId != 0) {
         payload["buff_id"] = buffId;

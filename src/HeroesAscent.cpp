@@ -360,7 +360,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.13");
+                ImGui::Text("version 0.14");
             }
             ImGui::End();
             });

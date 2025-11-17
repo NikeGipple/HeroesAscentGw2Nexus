@@ -352,8 +352,8 @@ void SendPlayerUpdate(
     };
 
     // === Aggiunta dati extra da Mumble (se disponibile) ===
-    if (Mumble::Data* m = Mumble::GetData()) {
-        const std::string identityUtf8 = WideToUtf8(m->Identity);
+    if (GW2MumbleLink* m = GetData()) {
+        const std::string identityUtf8 = WideToUtf8(m->identity);
         if (!identityUtf8.empty()) {
             nlohmann::json id = nlohmann::json::parse(identityUtf8, nullptr, false);
             if (!id.is_discarded()) {

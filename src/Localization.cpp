@@ -7,6 +7,7 @@
 #include "json/json.hpp"
 #include "nexus/Nexus.h"
 #include "Globals.h"
+#include "Network.h"
 
 
 using json = nlohmann::json;

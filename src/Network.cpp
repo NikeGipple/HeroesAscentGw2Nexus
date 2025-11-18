@@ -393,8 +393,18 @@ void SendPlayerUpdate(
         std::string status = j.value("status", "");
         std::string message = j.value("message", "");
 
+
         // --- Caso: personaggio squalificato ---
-        if (status == "error" && message == "Character is disqualified") {
+
+        const std::vector<std::string> criticalErrors = {
+            "Character is disqualified",
+            "Character not found"
+        };
+
+
+        if (status == "error" &&
+            std::find(criticalErrors.begin(), criticalErrors.end(), message) != criticalErrors.end())
+        {
             CharacterStatus = "disqualified";
             CharacterColor = ColorError;
 
@@ -402,7 +412,11 @@ void SendPlayerUpdate(
             LastViolationDesc.clear();
             LastViolationCode.clear();
 
-            if (j.contains("last_violation") && j["last_violation"].contains("code")) {
+            if (message == "Character not found") {
+                LastViolationTitle = T("ui.character_not_found_title");
+                LastViolationDesc = T("ui.character_not_found_desc");
+            }
+            else if (j.contains("last_violation") && j["last_violation"].contains("code")) {
                 LastViolationCode = j["last_violation"]["code"].get<std::string>();
 
                 if (APIDefs) {
@@ -444,6 +458,7 @@ void SendPlayerUpdate(
 }
 
 void CheckServerStatus() {
+
 
     HINTERNET hSession = WinHttpOpen(L"HeroesAscent/1.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
@@ -494,12 +509,12 @@ void CheckServerStatus() {
     WinHttpCloseHandle(hSession);
 
     if (response.find("\"status\":\"ok\"") != std::string::npos) {
-        ServerStatus = "Server online";
+        ServerStatus = T("ui.server_online");
         ServerColor = ColorSuccess;
         if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Network", "Server online");
     }
     else {
-        ServerStatus = "Server offline";
+        ServerStatus = T("ui.server_offline");
         ServerColor = ColorError;
         if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "Server offline");
     }

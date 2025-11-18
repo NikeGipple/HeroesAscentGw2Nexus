@@ -206,6 +206,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                             CurrentLang = (i == 0) ? "en" : "it";
                             LoadLanguage(CurrentLang);
                             LoadViolations(CurrentLang);
+                            CheckServerStatus();
 
                             if (!LastViolationCode.empty() && Violations.find(LastViolationCode) != Violations.end()) {
                                 LastViolationTitle = Violations[LastViolationCode].first;
@@ -228,23 +229,38 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
                 /* === Registrazione === */
                 ImGui::TextColored(ColorInfo, "%s", T("ui.registration_title"));
-                static char apiKeyBuf[128] = { 0 };
-                static bool bufInit = false;
-                if (!bufInit) {
-                    strncpy_s(apiKeyBuf, sizeof(apiKeyBuf), ApiKey.c_str(), _TRUNCATE);
-                    bufInit = true;
+
+                // Sempre mostrare lo stato della registrazione
+                if (!AccountToken.empty()) {
+                    ImGui::TextColored(ColorSuccess, "%s", T("ui.registration_already"));
+                    ImGui::Text("%s: %s", T("ui.registration_token"), AccountToken.c_str());
+                }
+                else {
+                    ImGui::TextColored(RegistrationColor, "%s", RegistrationStatus.c_str());
                 }
 
-                if (AccountToken.empty()) {
+                // Controllo se siamo nella schermata di selezione/creazione personaggio
+                bool isAtCharacterSelect =
+                    (RTAPIData &&
+                        RTAPIData->GameState == GS_CharacterSelection);
+
+                // SOLO qui mostro il campo input
+                if (AccountToken.empty() && isAtCharacterSelect)
+                {
+                    static char apiKeyBuf[128] = { 0 };
+                    static bool bufInit = false;
+                    if (!bufInit) {
+                        strncpy_s(apiKeyBuf, sizeof(apiKeyBuf), ApiKey.c_str(), _TRUNCATE);
+                        bufInit = true;
+                    }
+
                     ImVec2 inputPos = ImGui::GetCursorScreenPos();
                     ImGui::SetNextItemWidth(250);
 
-                    // Cattura stato attivo del campo
                     bool inputActive = ImGui::InputText("##apikey", apiKeyBuf, IM_ARRAYSIZE(apiKeyBuf));
                     if (inputActive)
                         ApiKey = apiKeyBuf;
 
-                    // Mostra placeholder solo se il campo è vuoto e non in focus
                     if (strlen(apiKeyBuf) == 0 && !ImGui::IsItemActive()) {
                         ImDrawList* drawList = ImGui::GetWindowDrawList();
                         drawList->AddText(ImVec2(inputPos.x + 8, inputPos.y + 3),
@@ -258,18 +274,8 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         RegistrationColor = ColorInfo;
                         std::thread(SendRegistration).detach();
                     }
-
-                    // Mostra messaggio solo se esiste
-                    if (!RegistrationStatus.empty()) {
-                        ImGui::Dummy(ImVec2(0.0f, 2.0f)); 
-                        ImGui::TextColored(RegistrationColor, "%s", RegistrationStatus.c_str());
-                    }
                 }
 
-                else {
-                    ImGui::TextColored(ColorSuccess, "%s", T("ui.registration_already"));
-                    ImGui::Text("%s: %s", T("ui.registration_token"), AccountToken.c_str());
-                }
 
                 ImGui::Separator();
 
@@ -360,7 +366,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.15");
+                ImGui::Text("version 0.16");
             }
             ImGui::End();
             });

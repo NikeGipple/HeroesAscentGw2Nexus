@@ -5,6 +5,7 @@
 #include <thread>
 #include <unordered_set>
 #include "Network.h"
+#include "logger.h"
 
 extern AddonAPI* APIDefs;
 
@@ -55,28 +56,12 @@ void OnArcCombat(void* data, const char* sourceArea) {
     if (!data) return;
     EvCombatData* e = static_cast<EvCombatData*>(data);
     if (!e || !e->ev) return;
+    APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", "=== RAW EVENT RECEIVED ===");
+
 
     // === LOG RAW LEGGIBILE ===
-    //char msg[512];
-    //sprintf_s(msg,
-    //    "[ARC RAW] AREA=%s | skillid=%u | skillname=%s | buff=%u | is_statechange=%u | is_activation=%u | buffremove=%u | value=%d | src(self=%u,name=%s,id=%llu) | dst(self=%u,name=%s,id=%llu)",
-    //    sourceArea,
-    //    e->ev->skillid,
-    //    (e->skillname ? e->skillname : "(null)"),
-    //    e->ev->buff,
-    //    e->ev->is_statechange,
-    //    e->ev->is_activation,
-    //    e->ev->is_buffremove,
-    //    e->ev->value,
-    //    (e->src ? e->src->self : 0),
-    //    (e->src && e->src->name ? e->src->name : "(null)"),
-    //    (e->src ? e->src->id : 0),
-    //    (e->dst ? e->dst->self : 0),
-    //    (e->dst && e->dst->name ? e->dst->name : "(null)"),
-    //    (e->dst ? e->dst->id : 0)
-    //);
+    LogArcEvent(e, sourceArea);
 
-    //APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", msg);
 
     const char* src = (e->src && e->src->name && strlen(e->src->name)) ? e->src->name : "(unknown)";
     const char* dst = (e->dst && e->dst->name && strlen(e->dst->name)) ? e->dst->name : "(unknown)";

@@ -1,7 +1,7 @@
-group
-food 
-enancement
-skill bannati
-tratti bannati
-
- 
+buff di cambio mappa
+miglioramento rilevazione ap
+party vietato
+glider non permesso
+consumabili e boost
+rapresent di gilda
+equipaggaimaneto nudo

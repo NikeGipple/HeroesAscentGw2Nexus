@@ -24,6 +24,7 @@
     <ClCompile Include="UIColors.cpp" />
     <ClCompile Include="Globals.cpp" />
     <ClCompile Include="MumbleLink.cpp" />
+    <ClCompile Include="logger.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="imgui\imstb_truetype.h">
@@ -75,6 +76,9 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="MumbleLink.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="logger.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>

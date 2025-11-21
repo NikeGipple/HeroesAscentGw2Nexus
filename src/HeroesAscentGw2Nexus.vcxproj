@@ -181,6 +181,7 @@
     <ClInclude Include="include\Localization.h" />
     <ClInclude Include="include\Network.h" />
     <ClInclude Include="include\PlayerData.h" />
+    <ClInclude Include="logger.h" />
     <ClInclude Include="MumbleLink.h" />
     <ClInclude Include="mumble\Mumble.h" />
     <ClInclude Include="nexus\Nexus.h" />
@@ -198,6 +199,7 @@
     <ClCompile Include="imgui\imgui_tables.cpp" />
     <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="Localization.cpp" />
+    <ClCompile Include="logger.cpp" />
     <ClCompile Include="MumbleLink.cpp" />
     <ClCompile Include="Network.cpp" />
     <ClCompile Include="PlayerData.cpp" />

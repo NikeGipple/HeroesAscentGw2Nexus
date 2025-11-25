@@ -5,7 +5,7 @@
 #include <thread>
 #include <unordered_set>
 #include "Network.h"
-#include "logger.h"
+#include "Logger.h"
 
 extern AddonAPI* APIDefs;
 
@@ -56,12 +56,10 @@ void OnArcCombat(void* data, const char* sourceArea) {
     if (!data) return;
     EvCombatData* e = static_cast<EvCombatData*>(data);
     if (!e || !e->ev) return;
-    APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", "=== RAW EVENT RECEIVED ===");
-
 
     // === LOG RAW LEGGIBILE ===
-    LogArcEvent(e, sourceArea);
-
+    /*LogArcEvent(e, sourceArea);*/
+    /*LogArcEventUltraCompact(e, sourceArea);*/
 
     const char* src = (e->src && e->src->name && strlen(e->src->name)) ? e->src->name : "(unknown)";
     const char* dst = (e->dst && e->dst->name && strlen(e->dst->name)) ? e->dst->name : "(unknown)";

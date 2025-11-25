@@ -4,6 +4,8 @@
 
 // Funzione principale
 void LogArcEvent(struct EvCombatData* e, const char* sourceArea);
+void LogArcEventCompact(struct EvCombatData* e, const char* sourceArea);
+void LogArcEventUltraCompact(struct EvCombatData* e, const char* sourceArea);
 
 // Funzioni helper per decodifica enum
 const char* DecodeStateChange(uint8_t sc);

@@ -117,19 +117,22 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     const bool nowAlive = (csNow & CS_IsAlive) != 0;
                     const bool nowDowned = (csNow & CS_IsDowned) != 0;
                     const bool nowDead = (!nowAlive && !nowDowned);
+                    const uint32_t mapNow = RTAPIData->MapID;
+                    const uint32_t mountNow = RTAPIData->MountIndex;
+                    const uint32_t levelNow = RTAPIData->CharacterLevel;
+                    const uint32_t groupNow = RTAPIData->GroupType;
+                    const uint32_t groupcountNow = RTAPIData->GroupMemberCount;
 
                     // Stato precedente
                     const uint32_t csPrev = lastSnapshot.CharacterState;
                     const bool prevAlive = (csPrev & CS_IsAlive) != 0;
                     const bool prevDowned = (csPrev & CS_IsDowned) != 0;
                     const bool prevDead = (!prevAlive && !prevDowned);
-
-                    const uint32_t mapNow = RTAPIData->MapID;
                     const uint32_t mapPrev = lastSnapshot.MapID;
-                    const uint32_t mountNow = RTAPIData->MountIndex;
                     const uint32_t mountPrev = lastSnapshot.MountIndex;
-                    const uint32_t levelNow = RTAPIData->CharacterLevel;
                     const uint32_t levelPrev = lastSnapshot.CharacterLevel;
+                    const uint32_t groupPrev = lastSnapshot.GroupType;
+                    const uint32_t groupcountPrev = lastSnapshot.GroupMemberCount;
 
                     // Nome corrente del personaggio 
                     const std::string currentName =
@@ -184,6 +187,12 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     else if (levelNow != levelPrev && levelNow > 0) {
                         SendPlayerUpdate(PlayerEventType::LEVEL_UP);
                         lastSnapshot.CharacterLevel = levelNow;
+                    }
+                    // === GROUP EVENT ===
+                    else if ((groupNow != 0 && groupPrev == 0) || (groupcountNow != groupcountPrev)) {
+                        SendPlayerUpdate(PlayerEventType::GROUP);
+                        lastSnapshot.GroupType = groupNow;
+                        lastSnapshot.GroupMemberCount = groupcountNow;
                     }
                 }
             }
@@ -366,7 +375,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.17");
+                ImGui::Text("version 0.18");
             }
             ImGui::End();
             });

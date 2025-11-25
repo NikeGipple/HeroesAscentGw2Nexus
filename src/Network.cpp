@@ -412,7 +412,11 @@ void SendPlayerUpdate(
             LastViolationDesc.clear();
             LastViolationCode.clear();
 
+
             if (message == "Character not found") {
+
+                LastViolationType = ViolationType::CharacterNotFound;
+
                 LastViolationTitle = T("ui.character_not_found_title");
                 LastViolationDesc = T("ui.character_not_found_desc");
             }

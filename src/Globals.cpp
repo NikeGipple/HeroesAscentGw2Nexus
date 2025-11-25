@@ -10,7 +10,11 @@ std::string LastViolationTitle;
 std::string LastViolationDesc;
 std::string LastViolationCode;
 
-std::string LastServerResponse;
+ViolationType LastViolationType = ViolationType::None;
+
+
 std::string CharacterStatus = "";
 ImVec4 CharacterColor = ColorGray;
+
+std::string LastServerResponse;
 

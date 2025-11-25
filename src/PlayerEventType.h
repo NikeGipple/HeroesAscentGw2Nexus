@@ -9,7 +9,8 @@
         MOUNT_CHANGED,
         HEALING_USED,
         LEVEL_UP,
-        BUFF_APPLIED
+        BUFF_APPLIED,
+        GROUP
     };
 
     inline const char* ToString(PlayerEventType type) {
@@ -22,6 +23,7 @@
         case PlayerEventType::HEALING_USED:     return "HEALING_USED"; 
         case PlayerEventType::LEVEL_UP:         return "LEVEL_UP";
         case PlayerEventType::BUFF_APPLIED:     return "BUFF_APPLIED";
+        case PlayerEventType::GROUP:            return "GROUP";
         default:                                return "UNKNOWN";
         }
     }

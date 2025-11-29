@@ -1,6 +1,5 @@
-buff di cambio mappa
+1) buff di cambio mappa -- chidere a delta
 miglioramento rilevazione ap
-party vietato
 glider non permesso
 consumabili e boost
 rapresent di gilda

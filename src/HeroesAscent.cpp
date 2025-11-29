@@ -56,9 +56,10 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
         // === Moduli principali ===
         InitLocalization(aApi);
-        LoadLanguage(CurrentLang);
 
-        LoadViolations(CurrentLang);
+        //LoadLanguage(CurrentLang);
+        //LoadViolations(CurrentLang);
+
         InitNetwork(aApi);
         InitArcIntegration(aApi);
 
@@ -67,7 +68,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             RegistrationStatus = T("ui.registration_already");
             RegistrationColor = ColorSuccess;
 
-            static bool tokenCheckDone = false; // evitiamo di ripeterlo
+            static bool tokenCheckDone = false;
 
             aApi->Renderer.Register(ERenderType_Render, []() {
                 if (!RTAPIData || RTAPIData->AccountName[0] == '\0') return;
@@ -119,6 +120,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     const bool nowDead = (!nowAlive && !nowDowned);
                     const uint32_t mapNow = RTAPIData->MapID;
                     const uint32_t mountNow = RTAPIData->MountIndex;
+                    const bool glidingNow = (csNow & CS_IsGliding) != 0;
                     const uint32_t levelNow = RTAPIData->CharacterLevel;
                     const uint32_t groupNow = RTAPIData->GroupType;
                     const uint32_t groupcountNow = RTAPIData->GroupMemberCount;
@@ -130,9 +132,11 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     const bool prevDead = (!prevAlive && !prevDowned);
                     const uint32_t mapPrev = lastSnapshot.MapID;
                     const uint32_t mountPrev = lastSnapshot.MountIndex;
+                    const bool glidingPrev = (csPrev & CS_IsGliding) != 0;
                     const uint32_t levelPrev = lastSnapshot.CharacterLevel;
                     const uint32_t groupPrev = lastSnapshot.GroupType;
                     const uint32_t groupcountPrev = lastSnapshot.GroupMemberCount;
+
 
                     // Nome corrente del personaggio 
                     const std::string currentName =
@@ -188,11 +192,16 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         SendPlayerUpdate(PlayerEventType::LEVEL_UP);
                         lastSnapshot.CharacterLevel = levelNow;
                     }
-                    // === GROUP EVENT ===
+                    // === GROUP  ===
                     else if ((groupNow != 0 && groupPrev == 0) || (groupcountNow != groupcountPrev)) {
                         SendPlayerUpdate(PlayerEventType::GROUP);
                         lastSnapshot.GroupType = groupNow;
                         lastSnapshot.GroupMemberCount = groupcountNow;
+                    }
+                    // === Gliding ===
+                    else if (glidingNow && !glidingPrev) {
+                        SendPlayerUpdate(PlayerEventType::GLIDING);
+                        lastSnapshot.CharacterState = csNow;
                     }
                 }
             }
@@ -220,6 +229,15 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                             if (!LastViolationCode.empty() && Violations.find(LastViolationCode) != Violations.end()) {
                                 LastViolationTitle = Violations[LastViolationCode].first;
                                 LastViolationDesc = Violations[LastViolationCode].second;
+                            }
+                            // === Ritraduzione delle violazioni senza codice ===
+                            else if (LastViolationType == ViolationType::CharacterNotFound) {
+                                LastViolationTitle = T("ui.character_not_found_title");
+                                LastViolationDesc = T("ui.character_not_found_desc");
+                            }
+                            else if (LastViolationType == ViolationType::GenericViolation) {
+                                LastViolationTitle = T("ui.unknown_violation_title");
+                                LastViolationDesc = T("ui.unknown_violation_desc");
                             }
 
                             if (ServerStatus == T("ui.violation_detected") || ServerStatus == "Violation detected") {
@@ -375,7 +393,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.18");
+                ImGui::Text("version 0.19");
             }
             ImGui::End();
             });

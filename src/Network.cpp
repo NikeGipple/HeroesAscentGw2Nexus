@@ -313,6 +313,10 @@ void SendRegistration() {
         RegistrationStatus = T("ui.registration_gw2_api_error");
         RegistrationColor = ColorError;
     }
+    else if (message == "guild_membership_not_allowed") {
+        RegistrationStatus = T("ui.registration_guild_membership_not_allowed");
+        RegistrationColor = ColorError;
+    }
     else {
         // Fallback
         RegistrationStatus = T("ui.registration_failed");

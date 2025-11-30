@@ -211,47 +211,67 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
             if (ImGui::Begin("HeroesAscent Assistant", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 
-                /* === Selettore lingua === */
-                ImGui::TextColored(ColorInfo, "%s:", T("ui.language"));
-                ImGui::SameLine();
-                static const char* langs[] = { "English", "Italiano" };
-                static int currentLangIdx = (CurrentLang == "it") ? 1 : 0;
-                if (ImGui::BeginCombo("##lang", langs[currentLangIdx])) {
-                    for (int i = 0; i < IM_ARRAYSIZE(langs); i++) {
-                        bool selected = (currentLangIdx == i);
-                        if (ImGui::Selectable(langs[i], selected)) {
-                            currentLangIdx = i;
-                            CurrentLang = (i == 0) ? "en" : "it";
-                            LoadLanguage(CurrentLang);
-                            LoadViolations(CurrentLang);
+                /* === HEADER: Server + Character a sinistra, Lingua a destra === */
+
+                // Imposta inizio riga
+                ImGui::BeginGroup();
+
+                    /* === Stato server === */
+                    if (ServerStatus.empty()) {
+                        ServerStatus = T("ui.checking_server");
+                        ServerColor = ColorInfo;
+                        if (APIDefs) {
+                            APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Performing initial /api/status check");
                             CheckServerStatus();
-
-                            if (!LastViolationCode.empty() && Violations.find(LastViolationCode) != Violations.end()) {
-                                LastViolationTitle = Violations[LastViolationCode].first;
-                                LastViolationDesc = Violations[LastViolationCode].second;
-                            }
-                            // === Ritraduzione delle violazioni senza codice ===
-                            else if (LastViolationType == ViolationType::CharacterNotFound) {
-                                LastViolationTitle = T("ui.character_not_found_title");
-                                LastViolationDesc = T("ui.character_not_found_desc");
-                            }
-                            else if (LastViolationType == ViolationType::GenericViolation) {
-                                LastViolationTitle = T("ui.unknown_violation_title");
-                                LastViolationDesc = T("ui.unknown_violation_desc");
-                            }
-
-                            if (ServerStatus == T("ui.violation_detected") || ServerStatus == "Violation detected") {
-                                ServerStatus = T("ui.violation_detected");
-                            }
-                            else if (ServerStatus == T("ui.rules_respected") || ServerStatus == "Rules respected") {
-                                ServerStatus = T("ui.rules_respected");
-                            }
                         }
-                        if (selected) ImGui::SetItemDefaultFocus();
                     }
-                    ImGui::EndCombo();
-                }
 
+                    ImGui::TextColored(ServerColor, "%s", ServerStatus.c_str());
+
+                    /* === Stato del personaggio === */
+                    if (!CharacterStatus.empty()) {
+                        std::string key = "ui.character_" + CharacterStatus;
+                        ImGui::TextColored(CharacterColor, "%s", T(key.c_str()));
+                        /*ImGui::TextColored(CharacterColor, "%s: %s", T("ui.character_status"), T(key.c_str()));*/
+                    }
+
+                    ImGui::EndGroup();
+
+                    /* === Selettore lingua === */
+
+                    ImGui::SameLine();
+
+                    float comboWidth = 60.0f;
+                    float rightEdge = ImGui::GetWindowContentRegionMax().x;
+                    float cursorX = rightEdge - comboWidth;
+
+                    ImGui::SetCursorPosX(cursorX);
+                    ImGui::SetNextItemWidth(comboWidth);
+
+                    static const char* langShort[] = { "EN", "IT" };
+                    static const char* langCodes[] = { "en", "it" };
+                    static int langIdx = (CurrentLang == "it") ? 1 : 0;
+
+                    if (ImGui::BeginCombo("##langselector", langShort[langIdx])) {
+                        for (int i = 0; i < 2; i++) {
+                            bool selected = (i == langIdx);
+
+                            if (ImGui::Selectable(langShort[i], selected)) {
+                                langIdx = i;
+                                CurrentLang = langCodes[i];
+
+                                LoadLanguage(CurrentLang);
+                                LoadViolations(CurrentLang);
+                                CheckServerStatus();
+                            }
+
+                            if (selected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
+
+                ImGui::Dummy(ImVec2(0, 4)); 
                 ImGui::Separator();
 
                 /* === Registrazione === */
@@ -301,27 +321,6 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         RegistrationColor = ColorInfo;
                         std::thread(SendRegistration).detach();
                     }
-                }
-
-
-                ImGui::Separator();
-
-                /* === Stato server === */
-                if (ServerStatus.empty()) {
-                    ServerStatus = T("ui.checking_server"); 
-                    ServerColor = ColorInfo;                  
-                    if (APIDefs) {
-                        APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Performing initial /api/status check");
-                        CheckServerStatus();
-                    }
-                }
-
-                ImGui::TextColored(ServerColor, "%s", ServerStatus.c_str());
-
-                /* === Stato del personaggio === */
-                if (!CharacterStatus.empty()) {
-                    std::string key = "ui.character_" + CharacterStatus;
-                    ImGui::TextColored(CharacterColor, "%s: %s", T("ui.character_status"), T(key.c_str()));
                 }
 
                 /* === Violazioni === */
@@ -393,7 +392,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.19");
+                ImGui::Text("version 0.20");
             }
             ImGui::End();
             });

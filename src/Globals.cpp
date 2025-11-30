@@ -18,3 +18,4 @@ ImVec4 CharacterColor = ColorGray;
 
 std::string LastServerResponse;
 
+

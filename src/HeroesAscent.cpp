@@ -16,7 +16,7 @@ using namespace ImGui;
 
 /* === Variabili globali principali === */
 AddonDefinition AddonDef{};
-
+bool FirstLoginSent = false;
 
 /* === Variabili di test registrazione === */
 extern std::string ApiKey;
@@ -99,7 +99,6 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             static uint64_t lastTick = 0;
             static RealTimeData lastSnapshot{};
             static bool snapshotInit = false;
-            static bool firstLoginSent = false;
             static std::string lastCharacterName = "";
 
             uint64_t now = GetTickCount64();
@@ -144,23 +143,32 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         ? RTAPIData->CharacterName
                         : "";
 
-                    // === LOGIN  ===
-                    if (RTAPIData->GameState == GS_CharacterSelection ||
-                        RTAPIData->GameState == GS_CharacterCreation)
-                    {
-                        firstLoginSent = false;
-                    }
-
-                    if (!firstLoginSent &&
+                    // === LOGIN ===
+                    if (!FirstLoginSent &&
                         RTAPIData->GameState == GS_Gameplay &&
                         !currentName.empty())
                     {
                         SendPlayerUpdate(PlayerEventType::LOGIN);
-                        firstLoginSent = true;
+                        FirstLoginSent = true;
                         lastCharacterName = currentName;
                         lastSnapshot = *RTAPIData;
-                    }
 
+                        return;
+                    }
+             
+                    // === LOGOUT ===
+
+                    if (FirstLoginSent &&
+                        lastSnapshot.GameState == GS_Gameplay &&
+                        RTAPIData->GameState == GS_CharacterSelection)
+                    {
+                        SendPlayerUpdate(PlayerEventType::LOGOUT);
+
+                        FirstLoginSent = false;
+                        lastCharacterName = "";
+                        lastSnapshot = *RTAPIData;
+                        return;  
+                    }
 
                     // === DOWNED ===
                     else if (nowDowned && !prevDowned) {
@@ -172,11 +180,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         SendPlayerUpdate(PlayerEventType::DEAD);
                         lastSnapshot.CharacterState = csNow;
                     }
-                    // === RESPAWN ===
-                    else if (nowAlive && !prevAlive) {
-                        SendPlayerUpdate(PlayerEventType::RESPAWN);
-                        lastSnapshot.CharacterState = csNow;
-                    }
+
                     // === MAP CHANGED ===
                     else if (mapNow != mapPrev) {
                         SendPlayerUpdate(PlayerEventType::MAP_CHANGED);
@@ -211,7 +215,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
             if (ImGui::Begin("HeroesAscent Assistant", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 
-                /* === HEADER: Server + Character a sinistra, Lingua a destra === */
+                /* === HEADER === */
 
                 // Imposta inizio riga
                 ImGui::BeginGroup();
@@ -392,7 +396,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.20");
+                ImGui::Text("version 0.21");
             }
             ImGui::End();
             });
@@ -401,7 +405,13 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
     AddonDef.Unload = []() {
         if (APIDefs)
             APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Addon unloaded (Full Module).");
-        };
+
+        if (FirstLoginSent) {
+            SendPlayerUpdate(PlayerEventType::LOGOUT);
+            FirstLoginSent = false;
+        }
+     };
+
 
     return &AddonDef;
 }

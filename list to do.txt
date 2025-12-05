@@ -1,6 +1,2 @@
 1) buff di cambio mappa -- chidere a delta
-miglioramento rilevazione ap
-glider non permesso
 consumabili e boost
-rapresent di gilda
-equipaggaimaneto nudo

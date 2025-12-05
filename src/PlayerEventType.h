@@ -2,9 +2,9 @@
     #pragma once
     enum class PlayerEventType {
         LOGIN,
+        LOGOUT,
         DOWNED,
         DEAD,
-        RESPAWN,
         MAP_CHANGED,
         MOUNT_CHANGED,
         HEALING_USED,
@@ -17,6 +17,7 @@
     inline const char* ToString(PlayerEventType type) {
         switch (type) {
         case PlayerEventType::LOGIN:            return "LOGIN";
+        case PlayerEventType::LOGOUT:           return "LOGOUT";
         case PlayerEventType::DOWNED:           return "DOWNED";
         case PlayerEventType::DEAD:             return "DEAD";
         case PlayerEventType::MAP_CHANGED:      return "MAP_CHANGED";

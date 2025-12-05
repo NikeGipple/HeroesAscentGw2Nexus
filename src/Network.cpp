@@ -328,7 +328,24 @@ void SendPlayerUpdate(
     PlayerEventType eventType,
     uint32_t buffId,
     const char* buffName)
-{
+{   
+    //if (eventType == PlayerEventType::FORCED_LOGOUT)
+    //{
+    //    if (AccountToken.empty())
+    //        return;
+
+    //    json payload = {
+    //        {"token", AccountToken},
+    //        {"event", "FORCED_LOGOUT"}
+    //    };
+
+    //    std::string resp;
+    //    HttpPostJSON(L"heroesascent.org", L"/api/character/update", payload.dump(), resp);
+    //    LastServerResponse = resp;
+
+    //    return;
+    //}
+
     if (!RTAPIData || AccountToken.empty()) return;
 
     // === Costruzione JSON completo ===
@@ -381,6 +398,8 @@ void SendPlayerUpdate(
     // === Invio ===
     std::string resp;
     HttpPostJSON(L"heroesascent.org", L"/api/character/update", payload.dump(), resp);
+
+    // === Risposta ===
     LastServerResponse = resp;
 
     if (APIDefs) {
@@ -390,7 +409,7 @@ void SendPlayerUpdate(
             APIDefs->Log(ELogLevel_INFO, "Network", ("SendPlayerUpdate() => " + resp).c_str());
     }
 
-    // === Analisi risposta JSON ===
+    // === parse risposta JSON ===
     try {
         json j = json::parse(resp);
 

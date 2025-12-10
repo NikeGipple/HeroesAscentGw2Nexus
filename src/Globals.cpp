@@ -20,5 +20,6 @@ std::string LastServerResponse;
 
 bool PlayerBelow50HP = false;
 uint64_t PlayerBelow50HP_Time = 0;
-
+bool LoginDeadCheckPending = false;
+uint64_t LoginTimestamp = 0;
 

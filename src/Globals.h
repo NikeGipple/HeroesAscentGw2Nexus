@@ -32,3 +32,5 @@ extern std::string LastServerResponse;
 // HP50 Status
 extern bool PlayerBelow50HP;
 extern uint64_t PlayerBelow50HP_Time;
+extern bool LoginDeadCheckPending;
+extern uint64_t LoginTimestamp;

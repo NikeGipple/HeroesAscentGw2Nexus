@@ -32,6 +32,18 @@ extern std::string LastViolationTitle;
 extern std::string LastViolationDesc;
 extern std::string LastServerResponse;
 
+// Helper: controlla se il personaggio è morto
+inline bool IsDead(const RealTimeData* d)
+{
+    const bool alive = (d->CharacterState & CS_IsAlive) != 0;
+    const bool downed = (d->CharacterState & CS_IsDowned) != 0;
+
+    // TRUE if ANY non-alive state
+    return (!alive);
+}
+
+
+
 
 /* === Entry Point Addon === */
 extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
@@ -163,11 +175,23 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         lastCharacterName = currentName;
                         lastSnapshot = *RTAPIData;
 
+                        // Attiva il controllo morte post-login
+                        LoginDeadCheckPending = true;
+
                         return;
                     }
-             
-                    // === LOGOUT ===
 
+                    // === DEAD AL LOGIN (frame successivo) ===
+                    if (LoginDeadCheckPending) {
+                        LoginDeadCheckPending = false;
+
+                        if (IsDead(RTAPIData)) {
+                            SendPlayerUpdate(PlayerEventType::DEAD);
+                        }
+
+                    }
+
+                    // === LOGOUT ===
                     if (FirstLoginSent &&
                         lastSnapshot.GameState == GS_Gameplay &&
                         RTAPIData->GameState == GS_CharacterSelection)
@@ -179,8 +203,6 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         lastSnapshot = *RTAPIData;
                         return;  
                     }
-
-
 
                     // === DOWNED ===
                     else if (nowDowned && !prevDowned) {
@@ -204,10 +226,13 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         SendPlayerUpdate(PlayerEventType::MOUNT_CHANGED);
                         lastSnapshot.MountIndex = mountNow;
                     }
+
+                    // === LEVEL  ===
                     else if (levelNow != levelPrev && levelNow > 0) {
                         SendPlayerUpdate(PlayerEventType::LEVEL_UP);
                         lastSnapshot.CharacterLevel = levelNow;
                     }
+
                     // === GROUP  ===
                     else if ((groupNow != 0 && groupPrev == 0) || (groupcountNow != groupcountPrev)) {
                         SendPlayerUpdate(PlayerEventType::GROUP);
@@ -408,7 +433,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.22");
+                ImGui::Text("version 0.23");
             }
             ImGui::End();
             });
@@ -421,11 +446,9 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
         if (FirstLoginSent) {
 
             if (PlayerBelow50HP) {
-                // Logout mentre il player era sotto il 50% HP
                 SendPlayerUpdate(PlayerEventType::LOGOUT_LOW_HP);
             }
             else {
-                // Logout normale
                 SendPlayerUpdate(PlayerEventType::LOGOUT);
             }
 

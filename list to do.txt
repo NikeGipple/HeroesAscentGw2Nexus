@@ -1,2 +1,3 @@
 1) buff di cambio mappa -- chidere a delta
 consumabili e boost
+logout in combact

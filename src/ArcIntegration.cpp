@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include "Network.h"
 #include "Logger.h"
+#include <Windows.h>
 
 extern AddonAPI* APIDefs;
 
@@ -56,6 +57,26 @@ void OnArcCombat(void* data, const char* sourceArea) {
     if (!data) return;
     EvCombatData* e = static_cast<EvCombatData*>(data);
     if (!e || !e->ev) return;
+
+    // === Log SOLO quando il soggetto al 50% è il TUO personaggio ===
+    if (e->ev->is_fifty == 1 && e->dst && e->dst->self == 1) {
+
+        PlayerBelow50HP = true;
+        PlayerBelow50HP_Time = GetTickCount64();
+
+        //const char* skill = (e->skillname ? e->skillname : "(no skill)");
+
+        //char msg[256];
+        //sprintf_s(msg,
+        //    "[HP50] PLAYER dropped below 50%% HP! Incoming skill=%s (id=%u)",
+        //    skill,
+        //    e->ev->skillid
+        //);
+
+        //APIDefs->Log(ELogLevel_INFO, "ArcIntegration", msg);
+    }
+
+
 
     // === LOG RAW LEGGIBILE ===
     /*LogArcEvent(e, sourceArea);*/

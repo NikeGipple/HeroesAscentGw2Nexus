@@ -18,4 +18,7 @@ ImVec4 CharacterColor = ColorGray;
 
 std::string LastServerResponse;
 
+bool PlayerBelow50HP = false;
+uint64_t PlayerBelow50HP_Time = 0;
+
 

@@ -28,3 +28,7 @@ extern ImVec4 CharacterColor;
 
 // Ultima risposta server 
 extern std::string LastServerResponse;
+
+// HP50 Status
+extern bool PlayerBelow50HP;
+extern uint64_t PlayerBelow50HP_Time;

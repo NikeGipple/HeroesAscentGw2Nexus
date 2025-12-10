@@ -107,6 +107,16 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 lastTick = now;
 
                 if (RTAPIData && RTAPIData->GameBuild != 0) {
+
+                    // === RESET AUTOMATICO DEL FLAG HP<50% DOPO 3 SECONDI ===
+                    if (PlayerBelow50HP) {
+                        uint64_t now2 = GetTickCount64();
+                        if (now2 - PlayerBelow50HP_Time >= 3000) {
+                            PlayerBelow50HP = false;
+                        }
+                    }
+
+					// Inizializza snapshot
                     if (!snapshotInit) {
                         lastSnapshot = *RTAPIData;
                         snapshotInit = true;
@@ -169,6 +179,8 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         lastSnapshot = *RTAPIData;
                         return;  
                     }
+
+
 
                     // === DOWNED ===
                     else if (nowDowned && !prevDowned) {
@@ -396,7 +408,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 ImGui::Separator();
-                ImGui::Text("version 0.21");
+                ImGui::Text("version 0.22");
             }
             ImGui::End();
             });
@@ -407,7 +419,16 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Addon unloaded (Full Module).");
 
         if (FirstLoginSent) {
-            SendPlayerUpdate(PlayerEventType::LOGOUT);
+
+            if (PlayerBelow50HP) {
+                // Logout mentre il player era sotto il 50% HP
+                SendPlayerUpdate(PlayerEventType::LOGOUT_LOW_HP);
+            }
+            else {
+                // Logout normale
+                SendPlayerUpdate(PlayerEventType::LOGOUT);
+            }
+
             FirstLoginSent = false;
         }
      };

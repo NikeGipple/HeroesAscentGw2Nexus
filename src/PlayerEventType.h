@@ -3,6 +3,7 @@
     enum class PlayerEventType {
         LOGIN,
         LOGOUT,
+        LOGOUT_LOW_HP,
         DOWNED,
         DEAD,
         MAP_CHANGED,
@@ -18,6 +19,7 @@
         switch (type) {
         case PlayerEventType::LOGIN:            return "LOGIN";
         case PlayerEventType::LOGOUT:           return "LOGOUT";
+		case PlayerEventType::LOGOUT_LOW_HP:    return "LOGOUT_LOW_HP";
         case PlayerEventType::DOWNED:           return "DOWNED";
         case PlayerEventType::DEAD:             return "DEAD";
         case PlayerEventType::MAP_CHANGED:      return "MAP_CHANGED";

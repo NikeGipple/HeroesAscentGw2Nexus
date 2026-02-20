@@ -1,5 +1,6 @@
 // Globals.h
 #pragma once
+#include <mutex>
 #include "nexus/Nexus.h"
 #include "RTAPI/RTAPI.h"
 #include <string>
@@ -34,3 +35,5 @@ extern bool PlayerBelow50HP;
 extern uint64_t PlayerBelow50HP_Time;
 extern bool LoginDeadCheckPending;
 extern uint64_t LoginTimestamp;
+
+extern std::mutex gStateMx;

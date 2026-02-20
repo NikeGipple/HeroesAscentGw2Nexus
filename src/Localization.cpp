@@ -8,6 +8,9 @@
 #include "nexus/Nexus.h"
 #include "Globals.h"
 #include "Network.h"
+#include <mutex>
+
+static std::mutex gLocMx;
 
 
 using json = nlohmann::json;
@@ -45,7 +48,7 @@ void InitLocalization(AddonAPI* api) {
 
 /* === Caricamento traduzioni === */
 void LoadLanguage(const std::string& lang) {
-    Translations.clear();
+    // Translations.clear();
 
     std::string path = GetAddonBasePath() + "\\locales\\" + lang + ".json";
 
@@ -60,23 +63,30 @@ void LoadLanguage(const std::string& lang) {
         return;
     }
 
+    std::map<std::string, std::string> TranslationsTmp;
+
     try {
         json data = json::parse(file);
         for (auto it = data.begin(); it != data.end(); ++it) {
-            Translations[it.key()] = it.value().get<std::string>();
+            TranslationsTmp[it.key()] = it.value().get<std::string>();
         }
     }
     catch (const std::exception& e) {
         if (APIDefs)
             APIDefs->Log(ELogLevel_WARNING, "Localization", ("Failed to parse " + path + ": " + e.what()).c_str());
+
     }
 
-    file.close();
+    {
+        std::scoped_lock lk(gLocMx);
+        Translations.swap(TranslationsTmp);
+    }
+
 }
 
 /* === Caricamento violazioni === */
 void LoadViolations(const std::string& lang) {
-    Violations.clear();
+    // Violations.clear();
     std::string path = GetAddonBasePath() + "\\violations\\" + lang + ".json";
 
     if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Localization", ("Loading violations file: " + path).c_str());
@@ -87,12 +97,14 @@ void LoadViolations(const std::string& lang) {
         return;
     }
 
+    std::map<std::string, std::pair<std::string, std::string>> ViolationsTmp;
+
     try {
         json data = json::parse(file);
         for (auto it = data.begin(); it != data.end(); ++it) {
             std::string code = it.key();
             if (data[code].contains("title") && data[code].contains("description")) {
-                Violations[code] = {
+                ViolationsTmp[code] = {
                     data[code]["title"].get<std::string>(),
                     data[code]["description"].get<std::string>()
                 };
@@ -101,21 +113,38 @@ void LoadViolations(const std::string& lang) {
     }
     catch (const std::exception& e) {
         if (APIDefs)
-            APIDefs->Log(ELogLevel_WARNING, "Localization", ("Failed to parse violations: " + std::string(e.what())).c_str());
+            APIDefs->Log(ELogLevel_WARNING, "Localization", 
+                ("Failed to parse violations: " + std::string(e.what())).c_str());
     }
 
-    file.close();
+    {
+        std::scoped_lock lk(gLocMx);
+        Violations.swap(ViolationsTmp);
+    }
 }
 
 /* === Traduttore === */
 const char* T(const std::string& key) {
-    auto it = Translations.find(key);
-    if (it != Translations.end()) return it->second.c_str();
+    thread_local std::string tls;
 
-    //if (APIDefs) {
-    //    std::string msg = "Missing key: " + key;
-    //    APIDefs->Log(ELogLevel_WARNING, "Localization", msg.c_str());
-    //}
+    {
+        std::scoped_lock lk(gLocMx);
+        auto it = Translations.find(key);
+        if (it != Translations.end()) {
+            tls = it->second;       
+            return tls.c_str();
+        }
+    }
 
-    return key.c_str();
+    tls = key; 
+    return tls.c_str();
+}
+
+bool TryGetViolation(const std::string& code, std::string& outTitle, std::string& outDesc) {
+    std::scoped_lock lk(gLocMx);
+    auto it = Violations.find(code);
+    if (it == Violations.end()) return false;
+    outTitle = it->second.first;
+    outDesc = it->second.second;
+    return true;
 }

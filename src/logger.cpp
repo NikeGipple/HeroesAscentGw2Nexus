@@ -1,4 +1,6 @@
-﻿#include "logger.h"
+﻿// Localization.cpp
+
+#include "logger.h"
 #include <cstdio>
 #include <cstring>
 #include <string>

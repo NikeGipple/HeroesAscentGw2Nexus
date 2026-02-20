@@ -18,12 +18,14 @@ using namespace ImGui;
 AddonDefinition AddonDef{};
 bool FirstLoginSent = false;
 
-/* === Variabili di test registrazione === */
+/* === Variabili di  registrazione === */
 extern std::string ApiKey;
 extern std::string AccountToken;
 extern std::string RegistrationStatus;
 extern ImVec4 RegistrationColor;
 void SendRegistration();
+
+bool WelcomeScreenShown = false;
 
 /* === Variabili stato server e violazioni === */
 extern std::string ServerStatus;
@@ -43,6 +45,22 @@ inline bool IsDead(const RealTimeData* d)
 }
 
 
+static void ResetSelectedCharacterState(
+    std::string& lastCharacterName,
+    RealTimeData& lastSnapshot,
+    bool& snapshotInit)
+{
+    std::scoped_lock lk(gStateMx);
+
+    CharacterStatus.clear();
+    CharacterColor = ColorGray;
+    FirstLoginSent = false;
+    LoginDeadCheckPending = false;
+    PlayerBelow50HP = false;
+    lastCharacterName.clear();
+    snapshotInit = false;
+    lastSnapshot = *RTAPIData;
+}
 
 
 /* === Entry Point Addon === */
@@ -75,13 +93,21 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
         InitNetwork(aApi);
         InitArcIntegration(aApi);
 
-        AccountToken = LoadAccountToken();
-        if (!AccountToken.empty()) {
-            RegistrationStatus = T("ui.registration_already");
-            RegistrationColor = ColorSuccess;
+        std::string loadedToken = LoadAccountToken();
+        bool shouldRegisterTokenCheck = false;
 
-            static bool tokenCheckDone = false;
+        {
+            std::scoped_lock lk(gStateMx);
+            AccountToken = loadedToken;
 
+            if (!AccountToken.empty()) {
+                RegistrationStatus = T("ui.registration_already");
+                RegistrationColor = ColorSuccess;
+                shouldRegisterTokenCheck = true;
+            }
+        }
+
+        if (shouldRegisterTokenCheck) {
             aApi->Renderer.Register(ERenderType_Render, []() {
                 if (!RTAPIData || RTAPIData->AccountName[0] == '\0') return;
                 static bool tokenChecked = false;
@@ -90,9 +116,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     tokenChecked = true;
                 }
                 });
-
         }
-
 
         if (APIDefs) {
             APIDefs->Log(ELogLevel_INFO, "Network", "Calling CheckServerStatus() after InitNetwork...");
@@ -165,6 +189,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         ? RTAPIData->CharacterName
                         : "";
 
+
                     // === LOGIN ===
                     if (!FirstLoginSent &&
                         RTAPIData->GameState == GS_Gameplay &&
@@ -200,6 +225,15 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
                         FirstLoginSent = false;
                         lastCharacterName = "";
+
+                        {
+                            std::scoped_lock lk(gStateMx);
+                            CharacterStatus.clear();
+                            CharacterColor = ColorGray;
+                            LastViolationTitle.clear();
+                            LastViolationDesc.clear();
+                        }
+
                         lastSnapshot = *RTAPIData;
                         return;  
                     }
@@ -250,7 +284,79 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             ImGui::SetNextWindowPos(ImVec2(30, 30), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(520, 520), ImGuiCond_FirstUseEver);
 
+            // --- snapshot thread-safe per UI ---
+            std::string serverStatusLocal, tokenLocal, regStatusLocal, apiKeyLocal;
+            std::string violTitleLocal, violDescLocal, lastRespLocal, charStatusLocal;
+            ImVec4 serverColorLocal, regColorLocal, charColorLocal;
+
+            {
+                std::scoped_lock lk(gStateMx);
+                serverStatusLocal = ServerStatus;
+                serverColorLocal = ServerColor;
+
+                tokenLocal = AccountToken;
+
+                regStatusLocal = RegistrationStatus;
+                regColorLocal = RegistrationColor;
+
+                apiKeyLocal = ApiKey;
+
+                violTitleLocal = LastViolationTitle;
+                violDescLocal = LastViolationDesc;
+
+                lastRespLocal = LastServerResponse;
+
+                charStatusLocal = CharacterStatus;
+                charColorLocal = CharacterColor;
+            }
+
             if (ImGui::Begin("HeroesAscent Assistant", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            
+                // State
+                const bool isAtCharacterSelect = (RTAPIData && RTAPIData->GameState == GS_CharacterSelection);
+                const bool notRegistered = tokenLocal.empty();
+
+                /* === modal start === */
+                static bool wasAtCharacterSelect = false;
+                static bool welcomePopupOpen = false;
+
+                // Trigger SOLO quando "entri" in char select
+                if (notRegistered && isAtCharacterSelect && !wasAtCharacterSelect) {
+                    welcomePopupOpen = true;
+                    ImGui::OpenPopup("Welcome###HA_Welcome");
+                }
+
+                // aggiorna edge detector
+                wasAtCharacterSelect = isAtCharacterSelect;
+
+                // Se ti registri mentre sei in char select, chiudi e basta
+                if (!notRegistered && welcomePopupOpen) {
+                    welcomePopupOpen = false;
+                    // Nota: CloseCurrentPopup funziona solo se siamo dentro BeginPopupModal
+                }
+
+                // Popup centrato (usa Appearing, non Always)
+                if (welcomePopupOpen) {
+                    ImVec2 display = ImGui::GetIO().DisplaySize;
+                    ImVec2 center(display.x * 0.5f, display.y * 0.5f);
+                    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+                    if (ImGui::BeginPopupModal("Welcome###HA_Welcome", nullptr,
+                        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse))
+                    {
+                        ImGui::TextWrapped("%s", T("ui.registration_welcome_charselect"));
+                        ImGui::Separator();
+
+                        if (ImGui::Button("OK")) {
+                            welcomePopupOpen = false;
+                            ImGui::CloseCurrentPopup();
+                        }
+
+                        ImGui::EndPopup();
+                    }
+                }
+
+                /* === modal end === */
 
                 /* === HEADER === */
 
@@ -258,21 +364,28 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 ImGui::BeginGroup();
 
                     /* === Stato server === */
-                    if (ServerStatus.empty()) {
-                        ServerStatus = T("ui.checking_server");
-                        ServerColor = ColorInfo;
+                    if (serverStatusLocal.empty()) {
+                        serverStatusLocal = T("ui.checking_server");
+                        serverColorLocal = ColorInfo;
+
+                        {
+                            std::scoped_lock lk(gStateMx);
+                            ServerStatus = serverStatusLocal;
+                            ServerColor = serverColorLocal;
+                        }
+
                         if (APIDefs) {
                             APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Performing initial /api/status check");
                             CheckServerStatus();
                         }
                     }
 
-                    ImGui::TextColored(ServerColor, "%s", ServerStatus.c_str());
+                    ImGui::TextColored(serverColorLocal, "%s", serverStatusLocal.c_str());
 
                     /* === Stato del personaggio === */
-                    if (!CharacterStatus.empty()) {
-                        std::string key = "ui.character_" + CharacterStatus;
-                        ImGui::TextColored(CharacterColor, "%s", T(key.c_str()));
+                    if (!charStatusLocal.empty()) {
+                        std::string key = "ui.character_" + charStatusLocal;
+                        ImGui::TextColored(charColorLocal, "%s", T(key.c_str()));
                         /*ImGui::TextColored(CharacterColor, "%s: %s", T("ui.character_status"), T(key.c_str()));*/
                     }
 
@@ -319,26 +432,22 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 ImGui::TextColored(ColorInfo, "%s", T("ui.registration_title"));
 
                 // Sempre mostrare lo stato della registrazione
-                if (!AccountToken.empty()) {
+                if (!tokenLocal.empty()) {
                     ImGui::TextColored(ColorSuccess, "%s", T("ui.registration_already"));
-                    ImGui::Text("%s: %s", T("ui.registration_token"), AccountToken.c_str());
+                    ImGui::Text("%s: %s", T("ui.registration_token"), tokenLocal.c_str());
                 }
                 else {
-                    ImGui::TextColored(RegistrationColor, "%s", RegistrationStatus.c_str());
+                    ImGui::TextColored(regColorLocal, "%s", regStatusLocal.c_str());
                 }
 
-                // Controllo se siamo nella schermata di selezione/creazione personaggio
-                bool isAtCharacterSelect =
-                    (RTAPIData &&
-                        RTAPIData->GameState == GS_CharacterSelection);
 
                 // SOLO qui mostro il campo input
-                if (AccountToken.empty() && isAtCharacterSelect)
+                if (tokenLocal.empty() && isAtCharacterSelect)
                 {
                     static char apiKeyBuf[128] = { 0 };
                     static bool bufInit = false;
                     if (!bufInit) {
-                        strncpy_s(apiKeyBuf, sizeof(apiKeyBuf), ApiKey.c_str(), _TRUNCATE);
+                        strncpy_s(apiKeyBuf, sizeof(apiKeyBuf), apiKeyLocal.c_str(), _TRUNCATE);
                         bufInit = true;
                     }
 
@@ -346,8 +455,10 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     ImGui::SetNextItemWidth(250);
 
                     bool inputActive = ImGui::InputText("##apikey", apiKeyBuf, IM_ARRAYSIZE(apiKeyBuf));
-                    if (inputActive)
+                    if (inputActive) {
+                        std::scoped_lock lk(gStateMx);
                         ApiKey = apiKeyBuf;
+                    }
 
                     if (strlen(apiKeyBuf) == 0 && !ImGui::IsItemActive()) {
                         ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -358,19 +469,27 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
                     ImGui::SameLine();
                     if (ImGui::Button(T("ui.registration_button"))) {
-                        RegistrationStatus = T("ui.registration_sending");
-                        RegistrationColor = ColorInfo;
+
+                        regStatusLocal = T("ui.registration_sending");
+                        regColorLocal = ColorInfo;
+
+                        {
+                            std::scoped_lock lk(gStateMx);
+                            RegistrationStatus = regStatusLocal;
+                            RegistrationColor = regColorLocal;
+                        }
+
                         std::thread(SendRegistration).detach();
                     }
                 }
 
                 /* === Violazioni === */
-                if (!LastViolationTitle.empty()) {
+                if (!violTitleLocal.empty()) {
                     ImGui::Separator();
-                    ImGui::TextColored(ColorError, "%s", LastViolationTitle.c_str());
+                    ImGui::TextColored(ColorError, "%s", violTitleLocal.c_str());
 
-                    if (!LastViolationDesc.empty())
-                        ImGui::TextWrapped("%s", LastViolationDesc.c_str());
+                    if (!violDescLocal.empty())
+                        ImGui::TextWrapped("%s", violDescLocal.c_str());
                     else
                         ImGui::TextWrapped("%s", T("ui.unknown_violation"));
                 }
@@ -421,9 +540,9 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 ImGui::TextColored(ColorInfo, "%s", T("ui.server_raw_response"));
 
                 // Se la risposta è vuota, mostriamo un placeholder
-                std::string displayResponse = LastServerResponse.empty()
+                std::string displayResponse = lastRespLocal.empty()
                     ? "[Waiting for server response...]"
-                    : LastServerResponse;
+                    : lastRespLocal;
 
                 ImGui::InputTextMultiline("##response",
                     (char*)displayResponse.c_str(),
@@ -434,7 +553,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
                 ImGui::Separator();
                 ImGui::Text("version 0.23");
-            }
+            }        
             ImGui::End();
             });
         };
@@ -443,18 +562,29 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
         if (APIDefs)
             APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Addon unloaded (Full Module).");
 
-        if (FirstLoginSent) {
+        bool firstLoginSentLocal = false;
+        bool below50Local = false;
 
-            if (PlayerBelow50HP) {
+        {
+            std::scoped_lock lk(gStateMx);
+            firstLoginSentLocal = FirstLoginSent;
+            below50Local = PlayerBelow50HP;
+        }
+
+        if (firstLoginSentLocal) {
+            if (below50Local) {
                 SendPlayerUpdate(PlayerEventType::LOGOUT_LOW_HP);
             }
             else {
                 SendPlayerUpdate(PlayerEventType::LOGOUT);
             }
 
-            FirstLoginSent = false;
+            {
+                std::scoped_lock lk(gStateMx);
+                FirstLoginSent = false;
+            }
         }
-     };
+    };
 
 
     return &AddonDef;

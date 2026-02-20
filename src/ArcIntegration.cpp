@@ -144,6 +144,10 @@ void OnArcCombat(void* data, const char* sourceArea) {
                 5857,   // Engineer Healing Turret
                 5857,   // Engineer Detonate Healing Turret
 
+                12377,  // toolbelt - Blessing of Dwayna 
+                29772,  // toolbelt - bandage from Med Kit
+				6176,   // toolbelt - Regenerating Mist from Healing Turret
+
                 31914,  // Ranger We Heal As One!
 				21773,  // Ranger Water Spirit
                 21776,  // Ranger - Water Spirit - Aqua Surge

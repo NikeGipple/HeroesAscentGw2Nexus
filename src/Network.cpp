@@ -15,6 +15,7 @@
 #include "json/json.hpp"
 #include "PlayerEventType.h"
 #include <cstdio>
+#include <mutex>
 
 #pragma comment(lib, "winhttp.lib")
 
@@ -108,7 +109,11 @@ static void HttpPostJSON(const wchar_t* host,
 void SendJsonToServer(const wchar_t* path, const std::string& body, std::string& outResp) {
     outResp.clear();
     HttpPostJSON(L"heroesascent.org", path, body, outResp);
-    LastServerResponse = outResp;
+
+    {   
+        std::scoped_lock lk(gStateMx);
+        LastServerResponse = outResp;
+    }
 
     if (APIDefs) {
         if (outResp.empty())
@@ -166,9 +171,18 @@ void CheckAccountToken() {
     }
 
     CheckServerStatus();
-    if (ServerStatus == "Server offline") {
+
+    std::string serverStatusCopy;
+    {   
+        std::scoped_lock lk(gStateMx);
+        serverStatusCopy = ServerStatus;
+    }
+
+    if (serverStatusCopy == "Server offline" || serverStatusCopy == T("ui.server_offline")) {
+
         if (APIDefs)
             APIDefs->Log(ELogLevel_WARNING, "Network", "Server offline — skipping token validation.");
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.server_unreachable");
         RegistrationColor = ColorWarning;
         return; 
@@ -194,6 +208,12 @@ void CheckAccountToken() {
 
     // Analizziamo la risposta grezza
     if (resp.find("\"result\":true") != std::string::npos) {
+
+        {
+            std::scoped_lock lk(gStateMx);
+            AccountToken = token; 
+        }
+
         if (APIDefs)
             APIDefs->Log(ELogLevel_INFO, "Network", "Account token validated successfully.");
     }
@@ -201,6 +221,7 @@ void CheckAccountToken() {
         if (APIDefs)
             APIDefs->Log(ELogLevel_WARNING, "Network", "Invalid account token — deleting local token...");
         DeleteAccountToken();
+        std::scoped_lock lk(gStateMx);
         AccountToken.clear();
         RegistrationStatus = T("ui.registration_required");
         RegistrationColor = ColorWarning;
@@ -208,7 +229,15 @@ void CheckAccountToken() {
 }
 
 void SendRegistration() {
-    if (ApiKey.empty()) {
+
+    std::string apiKeyLocal;
+    {  
+        std::scoped_lock lk(gStateMx);
+        apiKeyLocal = ApiKey;
+    }
+
+    if (apiKeyLocal.empty()) {
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.registration_missing_key");
         RegistrationColor = ColorWarning;
         return;
@@ -223,7 +252,7 @@ void SendRegistration() {
     // Costruisce il payload JSON
     std::ostringstream p;
     p << "{"
-        << "\"api_key\":\"" << ApiKey << "\"";
+        << "\"api_key\":\"" << apiKeyLocal << "\"";
 
     if (!accountName.empty()) {
         p << ",\"account_name\":\"" << accountName << "\"";
@@ -238,6 +267,7 @@ void SendRegistration() {
         APIDefs->Log(ELogLevel_INFO, "Network", ("Registration raw response: " + resp).c_str());
 
     if (resp.empty()) {
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.registration_no_response");
         RegistrationColor = ColorError;
         return;
@@ -256,8 +286,11 @@ void SendRegistration() {
 
     // === Interpreta il messaggio ===
     if (message == "registered") {
-        RegistrationStatus = T("ui.registration_registered");
-        RegistrationColor = ColorSuccess;
+        {
+            std::scoped_lock lk(gStateMx);
+            RegistrationStatus = T("ui.registration_registered");
+            RegistrationColor = ColorSuccess;
+        }
 
         // Salva il token solo in caso di registrazione riuscita
         size_t s = resp.find("\"account_token\":\"");
@@ -265,14 +298,23 @@ void SendRegistration() {
             s += 17;
             size_t e = resp.find('"', s);
             if (e != std::string::npos) {
-                AccountToken = resp.substr(s, e - s);
-                SaveAccountToken(AccountToken);
+                std::string token = resp.substr(s, e - s);
+
+                {  
+                    std::scoped_lock lk(gStateMx);
+                    AccountToken = token;
+                }
+
+                SaveAccountToken(token);
             }
         }
     }
     else if (message == "already_registered") {
-        RegistrationStatus = T("ui.registration_already_registered");
-        RegistrationColor = ColorWarning;
+        {   
+            std::scoped_lock lk(gStateMx);
+            RegistrationStatus = T("ui.registration_already_registered");
+            RegistrationColor = ColorWarning;
+        }
 
         // Aggiorniamo/riconfermiamo il token
         size_t s = resp.find("\"account_token\":\"");
@@ -280,45 +322,60 @@ void SendRegistration() {
             s += 17;
             size_t e = resp.find('"', s);
             if (e != std::string::npos) {
-                AccountToken = resp.substr(s, e - s);
-                SaveAccountToken(AccountToken);
+                std::string token = resp.substr(s, e - s);
+
+                {
+                    std::scoped_lock lk(gStateMx);
+                    AccountToken = token;
+                }
+
+                SaveAccountToken(token);
             }
         }
     }
     else if (message == "missing_key") {
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.registration_missing_key");
         RegistrationColor = ColorWarning;
     }
     else if (message == "missing_account_name") {
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.registration_missing_account_name");
         RegistrationColor = ColorWarning;
     }
     else if (message == "gw2_invalid_api_key") {
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.registration_gw2_invalid_api_key");
         RegistrationColor = ColorError;
     }
     else if (message == "invalid_permissions") {
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.registration_invalid_permissions");
         RegistrationColor = ColorError;
     }
     else if (message == "account_mismatch") {
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.registration_account_mismatch");
         RegistrationColor = ColorError;
     }
     else if (message == "too_many_ap") {
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.registration_too_many_ap");
         RegistrationColor = ColorError;
     }
     else if (message == "gw2_api_error" || message == "gw2_api_unavailable" || message == "gw2_api_down") {
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.registration_gw2_api_error");
         RegistrationColor = ColorError;
     }
     else if (message == "guild_membership_not_allowed") {
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.registration_guild_membership_not_allowed");
         RegistrationColor = ColorError;
     }
     else {
         // Fallback
+        std::scoped_lock lk(gStateMx);
         RegistrationStatus = T("ui.registration_failed");
         RegistrationColor = ColorError;
     }
@@ -329,28 +386,18 @@ void SendPlayerUpdate(
     uint32_t buffId,
     const char* buffName)
 {   
-    //if (eventType == PlayerEventType::FORCED_LOGOUT)
-    //{
-    //    if (AccountToken.empty())
-    //        return;
+    if (!RTAPIData) return;
 
-    //    json payload = {
-    //        {"token", AccountToken},
-    //        {"event", "FORCED_LOGOUT"}
-    //    };
-
-    //    std::string resp;
-    //    HttpPostJSON(L"heroesascent.org", L"/api/character/update", payload.dump(), resp);
-    //    LastServerResponse = resp;
-
-    //    return;
-    //}
-
-    if (!RTAPIData || AccountToken.empty()) return;
+    std::string tokenLocal;
+    {  
+        std::scoped_lock lk(gStateMx);
+        tokenLocal = AccountToken;
+    }
+    if (tokenLocal.empty()) return;
 
     // === Costruzione JSON completo ===
     json payload = {
-        {"token", AccountToken},
+        {"token", tokenLocal},
         {"name", RTAPIData->CharacterName},
         {"map_id", RTAPIData->MapID},
         {"map_type", RTAPIData->MapType},
@@ -400,7 +447,10 @@ void SendPlayerUpdate(
     HttpPostJSON(L"heroesascent.org", L"/api/character/update", payload.dump(), resp);
 
     // === Risposta ===
-    LastServerResponse = resp;
+    { 
+        std::scoped_lock lk(gStateMx);
+        LastServerResponse = resp;
+    }
 
     if (APIDefs) {
         if (resp.empty())
@@ -428,50 +478,59 @@ void SendPlayerUpdate(
         if (status == "error" &&
             std::find(criticalErrors.begin(), criticalErrors.end(), message) != criticalErrors.end())
         {
-            CharacterStatus = "disqualified";
-            CharacterColor = ColorError;
+            // 1) Prepara tutto in locale 
+            std::string newTitle;
+            std::string newDesc;
+            std::string newCode;
 
-            LastViolationTitle.clear();
-            LastViolationDesc.clear();
-            LastViolationCode.clear();
-
+            // Se il personaggio è disqualificato, di default è una violazione "generica"
+            ViolationType newType = ViolationType::GenericViolation;
 
             if (message == "Character not found") {
-
-                LastViolationType = ViolationType::CharacterNotFound;
-
-                LastViolationTitle = T("ui.character_not_found_title");
-                LastViolationDesc = T("ui.character_not_found_desc");
+                newType = ViolationType::CharacterNotFound;
+                newTitle = T("ui.character_not_found_title");
+                newDesc = T("ui.character_not_found_desc");
+                newCode.clear();
             }
             else if (j.contains("last_violation") && j["last_violation"].contains("code")) {
-                LastViolationCode = j["last_violation"]["code"].get<std::string>();
+                newCode = j["last_violation"]["code"].get<std::string>();
 
-                if (APIDefs) {
-                    APIDefs->Log(ELogLevel_INFO, "Network",
-                        (std::string("Last violation code received: ") + LastViolationCode).c_str());
-                }
-
-                auto it = Violations.find(LastViolationCode);
-                if (it != Violations.end()) {
-                    LastViolationTitle = it->second.first;
-                    LastViolationDesc = it->second.second;
-                }
-                else {
-                    LastViolationTitle = T("ui.unknown_violation_title");
-                    LastViolationDesc = T("ui.unknown_violation_desc");
+                if (!TryGetViolation(newCode, newTitle, newDesc)) {
+                    newTitle = T("ui.unknown_violation_title");
+                    newDesc = T("ui.unknown_violation_desc");
                 }
             }
             else {
-                LastViolationTitle = T("ui.unknown_violation_title");
-                LastViolationDesc = T("ui.unknown_violation_desc");
+                // "Character is disqualified" ma senza dettagli
+                newCode = "DISQUALIFIED_GENERIC";
+
+                if (!TryGetViolation(newCode, newTitle, newDesc)) {
+                    newTitle = T("ui.unknown_violation_title");
+                    newDesc = T("ui.unknown_violation_desc");
+                }
+            }
+
+            // 2) Applica tutto in modo atomico sotto gStateMx
+            {
+                std::scoped_lock lk(gStateMx);
+
+                CharacterStatus = "disqualified";
+                CharacterColor = ColorError;
+
+                LastViolationType = newType;
+                LastViolationCode = newCode;
+                LastViolationTitle = newTitle;
+                LastViolationDesc = newDesc;
             }
         }
 
         // --- Caso OK ---
         else if (status == "ok") {
+            std::scoped_lock lk(gStateMx);
             CharacterStatus = "valid";
             CharacterColor = ColorSuccess;
 
+            LastViolationType = ViolationType::None;
             LastViolationTitle.clear();
             LastViolationDesc.clear();
             LastViolationCode.clear();
@@ -491,7 +550,11 @@ void CheckServerStatus() {
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!hSession) {
         if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "WinHttpOpen failed");
-        ServerStatus = "Server offline"; ServerColor = ColorError;
+        {
+            std::scoped_lock lk(gStateMx);
+            ServerStatus = "Server offline";
+            ServerColor = ColorError;
+        }
         return;
     }
 
@@ -499,7 +562,11 @@ void CheckServerStatus() {
     if (!hConnect) {
         if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "WinHttpConnect failed");
         WinHttpCloseHandle(hSession);
-        ServerStatus = "Server offline"; ServerColor = ColorError;
+        {
+            std::scoped_lock lk(gStateMx);
+            ServerStatus = "Server offline";
+            ServerColor = ColorError;
+        }
         return;
     }
 
@@ -508,7 +575,11 @@ void CheckServerStatus() {
     if (!hRequest) {
         if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "WinHttpOpenRequest failed");
         WinHttpCloseHandle(hConnect); WinHttpCloseHandle(hSession);
-        ServerStatus = "Server offline"; ServerColor = ColorError;
+        {
+            std::scoped_lock lk(gStateMx);
+            ServerStatus = "Server offline";
+            ServerColor = ColorError;
+        }
         return;
     }
 
@@ -536,18 +607,26 @@ void CheckServerStatus() {
     WinHttpCloseHandle(hSession);
 
     if (response.find("\"status\":\"ok\"") != std::string::npos) {
-        ServerStatus = T("ui.server_online");
-        ServerColor = ColorSuccess;
+        {
+            std::scoped_lock lk(gStateMx);
+            ServerStatus = T("ui.server_online");
+            ServerColor = ColorSuccess;
+        }
+
         if (APIDefs) APIDefs->Log(ELogLevel_INFO, "Network", "Server online");
     }
     else {
-        ServerStatus = T("ui.server_offline");
-        ServerColor = ColorError;
+        {
+            std::scoped_lock lk(gStateMx);
+            ServerStatus = T("ui.server_offline");
+            ServerColor = ColorError;
+        }
         if (APIDefs) APIDefs->Log(ELogLevel_WARNING, "Network", "Server offline");
     }
 }
 
 void InitNetwork(AddonAPI* api) {
     (void)api;
+    std::scoped_lock lk(gStateMx);
     ServerStatus = "Checking…";
 }

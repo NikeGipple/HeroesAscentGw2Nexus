@@ -2,6 +2,9 @@
 #include "Globals.h"
 #include <string>
 #include "UIColors.h"
+#include <mutex>
+
+std::mutex gStateMx;
 
 AddonAPI* APIDefs = nullptr;
 RealTimeData* RTAPIData = nullptr;

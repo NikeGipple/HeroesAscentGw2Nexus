@@ -1,3 +1,4 @@
+// Logger.h
 #pragma once
 #include "ArcIntegration.h"
 #include "Globals.h"
@@ -12,3 +13,5 @@ const char* DecodeStateChange(uint8_t sc);
 const char* DecodeActivation(uint8_t act);
 const char* DecodeBuffRemove(uint8_t br);
 const char* DecodeIFF(uint8_t iff);
+
+bool TryGetViolation(const std::string& code, std::string& outTitle, std::string& outDesc);

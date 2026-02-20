@@ -312,34 +312,31 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
             if (ImGui::Begin("HeroesAscent Assistant", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             
-                // State
+                // --- modal WELCOME start ---
+                static bool wasAtCharacterSelect = false;
+                static bool dismissedThisVisit = false;
+
                 const bool isAtCharacterSelect = (RTAPIData && RTAPIData->GameState == GS_CharacterSelection);
                 const bool notRegistered = tokenLocal.empty();
 
-                /* === modal start === */
-                static bool wasAtCharacterSelect = false;
-                static bool welcomePopupOpen = false;
-
-                // Trigger SOLO quando "entri" in char select
-                if (notRegistered && isAtCharacterSelect && !wasAtCharacterSelect) {
-                    welcomePopupOpen = true;
-                    ImGui::OpenPopup("Welcome###HA_Welcome");
+                // Edge: quando ENTRO nel char select, resetto lo stato della visita
+                if (isAtCharacterSelect && !wasAtCharacterSelect) {
+                    dismissedThisVisit = false;
                 }
 
-                // aggiorna edge detector
+                // Aggiorno edge detector
                 wasAtCharacterSelect = isAtCharacterSelect;
 
-                // Se ti registri mentre sei in char select, chiudi e basta
-                if (!notRegistered && welcomePopupOpen) {
-                    welcomePopupOpen = false;
-                    // Nota: CloseCurrentPopup funziona solo se siamo dentro BeginPopupModal
-                }
+                // Condizione: mostra finché non è stato dismissato in questa visita
+                if (isAtCharacterSelect && notRegistered && !dismissedThisVisit) {
 
-                // Popup centrato (usa Appearing, non Always)
-                if (welcomePopupOpen) {
+                    // Centra la modale
                     ImVec2 display = ImGui::GetIO().DisplaySize;
                     ImVec2 center(display.x * 0.5f, display.y * 0.5f);
                     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+                    // Apri popup (lo puoi chiamare ogni frame finché non la chiudi)
+                    ImGui::OpenPopup("Welcome###HA_Welcome");
 
                     if (ImGui::BeginPopupModal("Welcome###HA_Welcome", nullptr,
                         ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse))
@@ -348,7 +345,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         ImGui::Separator();
 
                         if (ImGui::Button("OK")) {
-                            welcomePopupOpen = false;
+                            dismissedThisVisit = true;       // non riaprire finché resto qui
                             ImGui::CloseCurrentPopup();
                         }
 

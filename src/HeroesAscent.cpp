@@ -120,7 +120,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
         if (APIDefs) {
             APIDefs->Log(ELogLevel_INFO, "Network", "Calling CheckServerStatus() after InitNetwork...");
-            CheckServerStatus(); 
+            CheckServerStatus();
         }
         else {
             OutputDebugStringA("[HeroesAscent] APIDefs is NULL — cannot perform initial /api/status check.\n");
@@ -152,7 +152,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         }
                     }
 
-					// Inizializza snapshot
+                    // Inizializza snapshot
                     if (!snapshotInit) {
                         lastSnapshot = *RTAPIData;
                         snapshotInit = true;
@@ -235,7 +235,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         }
 
                         lastSnapshot = *RTAPIData;
-                        return;  
+                        return;
                     }
 
                     // === DOWNED ===
@@ -311,7 +311,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             }
 
             if (ImGui::Begin("HeroesAscent Assistant", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-            
+
                 // --- modal WELCOME start ---
                 static bool wasAtCharacterSelect = false;
                 static bool dismissedThisVisit = false;
@@ -347,7 +347,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                     if (w / h > maxAspect)
                         w = h * maxAspect;
 
-                    // (opzionale) se dopo il cap la width scende sotto minW, alza un filo l'altezza
+                    // se dopo il cap la width scende sotto minW, alza un filo l'altezza
                     if (w < minW) {
                         w = minW;
                         h = ClampF(w / maxAspect, minH, maxH);
@@ -365,41 +365,138 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         ImGuiWindowFlags_NoMove |
                         ImGuiWindowFlags_NoCollapse |
                         ImGuiWindowFlags_NoResize |
-                        ImGuiWindowFlags_NoScrollbar |        
-                        ImGuiWindowFlags_NoScrollWithMouse; 
+                        ImGuiWindowFlags_NoScrollbar |
+                        ImGuiWindowFlags_NoScrollWithMouse;
+
+                    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18.0f, 14.0f));
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 6.0f));
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10.0f, 10.0f));
 
                     if (ImGui::BeginPopupModal(popupTitle.c_str(), nullptr, flags))
                     {
                         const float footerReserve =
-                            ImGui::GetTextLineHeightWithSpacing() +     // separator/spazio
-                            ImGui::GetFrameHeightWithSpacing() +        // bottone
-                            6.0f;                                      // padding 
+                            ImGui::GetTextLineHeightWithSpacing() +
+                            ImGui::GetFrameHeightWithSpacing() +
+                            6.0f;
+
+                        // --- buffer input SOLO per popup ---
+                        static char apiKeyBuf[128] = { 0 };
+                        static bool bufInit = false;
+                        static bool popupWasOpen = false;
+
+                        // Detect open edge: quando il popup si apre, inizializzo buffer da ApiKey
+                        const bool popupIsOpen = ImGui::IsPopupOpen("###HA_Welcome");
+                        if (popupIsOpen && !popupWasOpen) {
+                            bufInit = false; // forza reload
+                        }
+                        popupWasOpen = popupIsOpen;
 
                         ImGui::BeginChild("##welcome_body", ImVec2(0, -footerReserve), false);
+
                         ImGui::TextWrapped("%s", T("ui.registration_welcome_charselect"));
+                        ImGui::Dummy(ImVec2(0, 8));
+
+                        // Stato registrazione (sempre visibile nel popup)
+                        // ImGui::TextColored(ColorInfo, "%s", T("ui.registration_title"));
+                        // ImGui::TextColored(regColorLocal, "%s", regStatusLocal.c_str());
+                        // ImGui::Dummy(ImVec2(0, 6));
+
+                        // Input + bottone SOLO se non registrato 
+                        if (tokenLocal.empty())
+                        {
+                            if (!bufInit) {
+                                strncpy_s(apiKeyBuf, sizeof(apiKeyBuf), apiKeyLocal.c_str(), _TRUNCATE);
+                                bufInit = true;
+                            }
+
+                            // calcolo larghezza bottone in base al testo + padding
+                            const char* btnLabel = T("ui.registration_button");
+                            const char* phLabel = T("ui.registration_placeholder");
+
+                            const ImGuiStyle& st = ImGui::GetStyle();
+                            float btnW = ImGui::CalcTextSize(btnLabel).x + st.FramePadding.x * 2.0f;
+
+                            // spazio disponibile nella riga
+                            float avail = ImGui::GetContentRegionAvail().x;
+                            float inputW = avail - btnW - st.ItemSpacing.x;
+                            if (inputW < 200.0f) inputW = 200.0f;
+
+                            ImVec2 inputPos = ImGui::GetCursorScreenPos();
+                            ImGui::SetNextItemWidth(inputW);
+
+                            bool inputActive = ImGui::InputText("##apikey_popup", apiKeyBuf, IM_ARRAYSIZE(apiKeyBuf));
+                            if (inputActive) {
+                                std::scoped_lock lk(gStateMx);
+                                ApiKey = apiKeyBuf;
+                            }
+
+                            // placeholder se vuoto e non attivo
+                            if (strlen(apiKeyBuf) == 0 && !ImGui::IsItemActive()) {
+                                ImDrawList* drawList = ImGui::GetWindowDrawList();
+                                drawList->AddText(ImVec2(inputPos.x + 8, inputPos.y + 3), ImColor(ColorGray), phLabel);
+                            }
+
+                            ImGui::SameLine();
+
+                            if (ImGui::Button(btnLabel, ImVec2(btnW, 0)))
+                            {
+                                regStatusLocal = T("ui.registration_sending");
+                                regColorLocal = ColorInfo;
+
+                                {
+                                    std::scoped_lock lk(gStateMx);
+                                    RegistrationStatus = regStatusLocal;
+                                    RegistrationColor = regColorLocal;
+                                }
+
+                                std::thread(SendRegistration).detach();
+                            }
+
+                            // --- FEEDBACK sotto input 
+                            {
+                                ImGui::Dummy(ImVec2(0, 6));
+                                ImGui::TextDisabled("%s", T("ui.server_raw_response"));
+
+                                // Messaggio effettivo (colorato come già fai)
+                                if (!regStatusLocal.empty()) {
+                                    ImGui::TextColored(regColorLocal, "%s", regStatusLocal.c_str());
+                                }
+                            }
+
+                        }
+
                         ImGui::EndChild();
 
                         // ----- FOOTER -----
                         ImGui::Separator();
+                        ImGui::Dummy(ImVec2(0.0f, 6.0f));
 
-                        ImGui::Dummy(ImVec2(0.0f, 6.0f)); // padding sopra
+                        const char* skipLabel = T("ui.skip");
+                        const ImGuiStyle& st = ImGui::GetStyle();
 
-                        const float btnW = 90.0f;
-                        float x = ImGui::GetWindowContentRegionMax().x - btnW - ImGui::GetStyle().ItemSpacing.x;
+                        // larghezza ideale in base al testo (più padding)
+                        float btnW = ImGui::CalcTextSize(skipLabel).x + st.FramePadding.x * 2.0f;
+
+                        // (opzionale) minimo estetico
+                        btnW = (btnW < 140.0f) ? 140.0f : btnW;
+
+                        // allineamento a destra nello spazio disponibile
+                        float avail = ImGui::GetContentRegionAvail().x;
+                        float x = ImGui::GetCursorPosX() + (avail - btnW);
                         if (x < ImGui::GetCursorPosX()) x = ImGui::GetCursorPosX();
                         ImGui::SetCursorPosX(x);
 
-                        if (ImGui::Button(T("ui.ok"), ImVec2(btnW, 0))) {
+                        if (ImGui::Button(skipLabel, ImVec2(btnW, 0))) {
                             dismissedThisVisit = true;
                             ImGui::CloseCurrentPopup();
                         }
 
-                        ImGui::Dummy(ImVec2(0.0f, 6.0f)); // padding sotto
-
+                        ImGui::Dummy(ImVec2(0.0f, 6.0f));
                         ImGui::EndPopup();
                     }
-                }
 
+                    ImGui::PopStyleVar(3);
+                }
                 /* === modal end === */
 
                 /* === HEADER === */
@@ -407,69 +504,69 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 // Imposta inizio riga
                 ImGui::BeginGroup();
 
-                    /* === Stato server === */
-                    if (serverStatusLocal.empty()) {
-                        serverStatusLocal = T("ui.checking_server");
-                        serverColorLocal = ColorInfo;
+                /* === Stato server === */
+                if (serverStatusLocal.empty()) {
+                    serverStatusLocal = T("ui.checking_server");
+                    serverColorLocal = ColorInfo;
 
-                        {
-                            std::scoped_lock lk(gStateMx);
-                            ServerStatus = serverStatusLocal;
-                            ServerColor = serverColorLocal;
-                        }
+                    {
+                        std::scoped_lock lk(gStateMx);
+                        ServerStatus = serverStatusLocal;
+                        ServerColor = serverColorLocal;
+                    }
 
-                        if (APIDefs) {
-                            APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Performing initial /api/status check");
+                    if (APIDefs) {
+                        APIDefs->Log(ELogLevel_INFO, "HeroesAscent", "Performing initial /api/status check");
+                        CheckServerStatus();
+                    }
+                }
+
+                ImGui::TextColored(serverColorLocal, "%s", serverStatusLocal.c_str());
+
+                /* === Stato del personaggio === */
+                if (!charStatusLocal.empty()) {
+                    std::string key = "ui.character_" + charStatusLocal;
+                    ImGui::TextColored(charColorLocal, "%s", T(key.c_str()));
+                    /*ImGui::TextColored(CharacterColor, "%s: %s", T("ui.character_status"), T(key.c_str()));*/
+                }
+
+                ImGui::EndGroup();
+
+                /* === Selettore lingua === */
+
+                ImGui::SameLine();
+
+                float comboWidth = 60.0f;
+                float rightEdge = ImGui::GetWindowContentRegionMax().x;
+                float cursorX = rightEdge - comboWidth;
+
+                ImGui::SetCursorPosX(cursorX);
+                ImGui::SetNextItemWidth(comboWidth);
+
+                static const char* langShort[] = { "EN", "IT" };
+                static const char* langCodes[] = { "en", "it" };
+                static int langIdx = (CurrentLang == "it") ? 1 : 0;
+
+                if (ImGui::BeginCombo("##langselector", langShort[langIdx])) {
+                    for (int i = 0; i < 2; i++) {
+                        bool selected = (i == langIdx);
+
+                        if (ImGui::Selectable(langShort[i], selected)) {
+                            langIdx = i;
+                            CurrentLang = langCodes[i];
+
+                            LoadLanguage(CurrentLang);
+                            LoadViolations(CurrentLang);
                             CheckServerStatus();
                         }
+
+                        if (selected)
+                            ImGui::SetItemDefaultFocus();
                     }
+                    ImGui::EndCombo();
+                }
 
-                    ImGui::TextColored(serverColorLocal, "%s", serverStatusLocal.c_str());
-
-                    /* === Stato del personaggio === */
-                    if (!charStatusLocal.empty()) {
-                        std::string key = "ui.character_" + charStatusLocal;
-                        ImGui::TextColored(charColorLocal, "%s", T(key.c_str()));
-                        /*ImGui::TextColored(CharacterColor, "%s: %s", T("ui.character_status"), T(key.c_str()));*/
-                    }
-
-                    ImGui::EndGroup();
-
-                    /* === Selettore lingua === */
-
-                    ImGui::SameLine();
-
-                    float comboWidth = 60.0f;
-                    float rightEdge = ImGui::GetWindowContentRegionMax().x;
-                    float cursorX = rightEdge - comboWidth;
-
-                    ImGui::SetCursorPosX(cursorX);
-                    ImGui::SetNextItemWidth(comboWidth);
-
-                    static const char* langShort[] = { "EN", "IT" };
-                    static const char* langCodes[] = { "en", "it" };
-                    static int langIdx = (CurrentLang == "it") ? 1 : 0;
-
-                    if (ImGui::BeginCombo("##langselector", langShort[langIdx])) {
-                        for (int i = 0; i < 2; i++) {
-                            bool selected = (i == langIdx);
-
-                            if (ImGui::Selectable(langShort[i], selected)) {
-                                langIdx = i;
-                                CurrentLang = langCodes[i];
-
-                                LoadLanguage(CurrentLang);
-                                LoadViolations(CurrentLang);
-                                CheckServerStatus();
-                            }
-
-                            if (selected)
-                                ImGui::SetItemDefaultFocus();
-                        }
-                        ImGui::EndCombo();
-                    }
-
-                ImGui::Dummy(ImVec2(0, 4)); 
+                ImGui::Dummy(ImVec2(0, 4));
                 ImGui::Separator();
 
                 /* === Registrazione === */
@@ -486,6 +583,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
 
                 // SOLO qui mostro il campo input
+                /*
                 if (tokenLocal.empty() && isAtCharacterSelect)
                 {
                     static char apiKeyBuf[128] = { 0 };
@@ -526,6 +624,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                         std::thread(SendRegistration).detach();
                     }
                 }
+                */
 
                 /* === Violazioni === */
                 if (!violTitleLocal.empty()) {
@@ -597,7 +696,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
 
                 ImGui::Separator();
                 ImGui::Text("version 0.23");
-            }        
+            }
             ImGui::End();
             });
         };
@@ -628,7 +727,7 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 FirstLoginSent = false;
             }
         }
-    };
+        };
 
 
     return &AddonDef;

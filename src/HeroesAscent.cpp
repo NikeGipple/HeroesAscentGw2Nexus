@@ -62,6 +62,35 @@ static void ResetSelectedCharacterState(
     lastSnapshot = *RTAPIData;
 }
 
+static void DrawLanguageSelector(const char* comboId, float width)
+{
+    static const char* langShort[] = { "EN", "IT" };
+    static const char* langCodes[] = { "en", "it" };
+
+    // CurrentLang è la verità: niente static langIdx qui, così non si desincronizza
+    int langIdx = (CurrentLang == "it") ? 1 : 0;
+
+    ImGui::SetNextItemWidth(width);
+
+    if (ImGui::BeginCombo(comboId, langShort[langIdx])) {
+        for (int i = 0; i < 2; ++i) {
+            bool selected = (i == langIdx);
+
+            if (ImGui::Selectable(langShort[i], selected)) {
+                CurrentLang = langCodes[i];
+
+                LoadLanguage(CurrentLang);
+                LoadViolations(CurrentLang);
+                CheckServerStatus();
+            }
+
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+}
+
 
 /* === Entry Point Addon === */
 extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
@@ -379,6 +408,21 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                             ImGui::GetFrameHeightWithSpacing() +
                             6.0f;
 
+                        // language selector 
+                        {
+                            const float comboW = 60.0f;
+
+                            float y = ImGui::GetCursorPosY();
+                            float x = ImGui::GetWindowContentRegionMax().x - comboW;
+
+                            ImGui::SetCursorPos(ImVec2(x, y));
+                            DrawLanguageSelector("##langselector_popup", comboW);
+
+                            // IMPORTANT: scendo sotto l'altezza del combo e torno a sinistra
+                            ImGui::SetCursorPos(ImVec2(ImGui::GetStyle().WindowPadding.x,
+                                y + ImGui::GetFrameHeightWithSpacing()));
+                        }
+
                         // --- buffer input SOLO per popup ---
                         static char apiKeyBuf[128] = { 0 };
                         static bool bufInit = false;
@@ -535,36 +579,10 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 /* === Selettore lingua === */
 
                 ImGui::SameLine();
-
-                float comboWidth = 60.0f;
+                const float comboW = 60.0f;
                 float rightEdge = ImGui::GetWindowContentRegionMax().x;
-                float cursorX = rightEdge - comboWidth;
-
-                ImGui::SetCursorPosX(cursorX);
-                ImGui::SetNextItemWidth(comboWidth);
-
-                static const char* langShort[] = { "EN", "IT" };
-                static const char* langCodes[] = { "en", "it" };
-                static int langIdx = (CurrentLang == "it") ? 1 : 0;
-
-                if (ImGui::BeginCombo("##langselector", langShort[langIdx])) {
-                    for (int i = 0; i < 2; i++) {
-                        bool selected = (i == langIdx);
-
-                        if (ImGui::Selectable(langShort[i], selected)) {
-                            langIdx = i;
-                            CurrentLang = langCodes[i];
-
-                            LoadLanguage(CurrentLang);
-                            LoadViolations(CurrentLang);
-                            CheckServerStatus();
-                        }
-
-                        if (selected)
-                            ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
-                }
+                ImGui::SetCursorPosX(rightEdge - comboW);
+                DrawLanguageSelector("##langselector_main", comboW);
 
                 ImGui::Dummy(ImVec2(0, 4));
                 ImGui::Separator();

@@ -330,24 +330,71 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 // Condizione: mostra finché non è stato dismissato in questa visita
                 if (isAtCharacterSelect && notRegistered && !dismissedThisVisit) {
 
-                    // Centra la modale
                     ImVec2 display = ImGui::GetIO().DisplaySize;
-                    ImVec2 center(display.x * 0.5f, display.y * 0.5f);
-                    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 
-                    // Apri popup (lo puoi chiamare ogni frame finché non la chiudi)
-                    ImGui::OpenPopup("Welcome###HA_Welcome");
+                    auto ClampF = [](float v, float lo, float hi) { return (v < lo) ? lo : (v > hi) ? hi : v; };
 
-                    if (ImGui::BeginPopupModal("Welcome###HA_Welcome", nullptr,
-                        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse))
+                    const float minW = 720.0f;
+                    const float minH = 300.0f;
+                    const float maxW = display.x * 0.90f;
+                    const float maxH = display.y * 0.80f;
+
+                    float w = ClampF(display.x * 0.55f, minW, maxW);
+                    float h = ClampF(display.y * 0.35f, minH, maxH);
+
+                    // Limite aspect ratio per non esplodere su 21:9
+                    const float maxAspect = 1.85f; // 16:9 = 1.78, quindi qui resta generosa ma non "panoramica"
+                    if (w / h > maxAspect)
+                        w = h * maxAspect;
+
+                    // (opzionale) se dopo il cap la width scende sotto minW, alza un filo l'altezza
+                    if (w < minW) {
+                        w = minW;
+                        h = ClampF(w / maxAspect, minH, maxH);
+                    }
+
+                    ImVec2 popupSize(w, h);
+
+                    ImGui::SetNextWindowPos(ImVec2(display.x * 0.5f, display.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+                    ImGui::SetNextWindowSize(popupSize, ImGuiCond_Always);
+
+                    ImGui::OpenPopup("###HA_Welcome");
+                    std::string popupTitle = std::string(T("ui.welcome_title")) + "###HA_Welcome";
+
+                    ImGuiWindowFlags flags =
+                        ImGuiWindowFlags_NoMove |
+                        ImGuiWindowFlags_NoCollapse |
+                        ImGuiWindowFlags_NoResize |
+                        ImGuiWindowFlags_NoScrollbar |        
+                        ImGuiWindowFlags_NoScrollWithMouse; 
+
+                    if (ImGui::BeginPopupModal(popupTitle.c_str(), nullptr, flags))
                     {
+                        const float footerReserve =
+                            ImGui::GetTextLineHeightWithSpacing() +     // separator/spazio
+                            ImGui::GetFrameHeightWithSpacing() +        // bottone
+                            6.0f;                                      // padding 
+
+                        ImGui::BeginChild("##welcome_body", ImVec2(0, -footerReserve), false);
                         ImGui::TextWrapped("%s", T("ui.registration_welcome_charselect"));
+                        ImGui::EndChild();
+
+                        // ----- FOOTER -----
                         ImGui::Separator();
 
-                        if (ImGui::Button("OK")) {
-                            dismissedThisVisit = true;       // non riaprire finché resto qui
+                        ImGui::Dummy(ImVec2(0.0f, 6.0f)); // padding sopra
+
+                        const float btnW = 90.0f;
+                        float x = ImGui::GetWindowContentRegionMax().x - btnW - ImGui::GetStyle().ItemSpacing.x;
+                        if (x < ImGui::GetCursorPosX()) x = ImGui::GetCursorPosX();
+                        ImGui::SetCursorPosX(x);
+
+                        if (ImGui::Button(T("ui.ok"), ImVec2(btnW, 0))) {
+                            dismissedThisVisit = true;
                             ImGui::CloseCurrentPopup();
                         }
+
+                        ImGui::Dummy(ImVec2(0.0f, 6.0f)); // padding sotto
 
                         ImGui::EndPopup();
                     }

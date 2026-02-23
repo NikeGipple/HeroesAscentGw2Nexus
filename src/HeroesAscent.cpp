@@ -3,6 +3,7 @@
 #include "imgui/imgui.h"
 #include "RTAPI/RTAPI.h"
 #include <string>
+#include <vector>
 #include <thread>
 #include "Localization.h"
 #include "Network.h"
@@ -339,7 +340,23 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 charColorLocal = CharacterColor;
             }
 
-            if (ImGui::Begin("HeroesAscent Assistant", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            // dimensioni della main windows
+            const float kW = 300.0f;
+
+            ImGui::SetNextWindowPos(ImVec2(30, 30), ImGuiCond_FirstUseEver);
+
+            // larghezza fissa: min = max
+            ImGui::SetNextWindowSizeConstraints(
+                ImVec2(kW, 0.0f),
+                ImVec2(kW, FLT_MAX)
+            );
+
+            ImGuiWindowFlags mainFlags =
+                ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_AlwaysAutoResize;
+
+
+            if (ImGui::Begin("HeroesAscent Assistant", nullptr, mainFlags)) {
 
                 // --- modal WELCOME start ---
                 static bool wasAtCharacterSelect = false;
@@ -600,50 +617,6 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 }
 
 
-                // SOLO qui mostro il campo input
-                /*
-                if (tokenLocal.empty() && isAtCharacterSelect)
-                {
-                    static char apiKeyBuf[128] = { 0 };
-                    static bool bufInit = false;
-                    if (!bufInit) {
-                        strncpy_s(apiKeyBuf, sizeof(apiKeyBuf), apiKeyLocal.c_str(), _TRUNCATE);
-                        bufInit = true;
-                    }
-
-                    ImVec2 inputPos = ImGui::GetCursorScreenPos();
-                    ImGui::SetNextItemWidth(250);
-
-                    bool inputActive = ImGui::InputText("##apikey", apiKeyBuf, IM_ARRAYSIZE(apiKeyBuf));
-                    if (inputActive) {
-                        std::scoped_lock lk(gStateMx);
-                        ApiKey = apiKeyBuf;
-                    }
-
-                    if (strlen(apiKeyBuf) == 0 && !ImGui::IsItemActive()) {
-                        ImDrawList* drawList = ImGui::GetWindowDrawList();
-                        drawList->AddText(ImVec2(inputPos.x + 8, inputPos.y + 3),
-                            ImColor(ColorGray),
-                            T("ui.registration_placeholder"));
-                    }
-
-                    ImGui::SameLine();
-                    if (ImGui::Button(T("ui.registration_button"))) {
-
-                        regStatusLocal = T("ui.registration_sending");
-                        regColorLocal = ColorInfo;
-
-                        {
-                            std::scoped_lock lk(gStateMx);
-                            RegistrationStatus = regStatusLocal;
-                            RegistrationColor = regColorLocal;
-                        }
-
-                        std::thread(SendRegistration).detach();
-                    }
-                }
-                */
-
                 /* === Violazioni === */
                 if (!violTitleLocal.empty()) {
                     ImGui::Separator();
@@ -700,17 +673,28 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
                 ImGui::Separator();
                 ImGui::TextColored(ColorInfo, "%s", T("ui.server_raw_response"));
 
-                // Se la risposta è vuota, mostriamo un placeholder
                 std::string displayResponse = lastRespLocal.empty()
                     ? "[Waiting for server response...]"
                     : lastRespLocal;
 
-                ImGui::InputTextMultiline("##response",
-                    (char*)displayResponse.c_str(),
-                    displayResponse.size() + 1,
-                    ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 6),
-                    ImGuiInputTextFlags_ReadOnly);
+                // Buffer persistente per ImGui (necessario anche se ReadOnly)
+                static std::string rawCache;
+                static std::vector<char> rawBuf;
 
+                if (rawCache != displayResponse) {
+                    rawCache = displayResponse;
+                    rawBuf.assign(rawCache.begin(), rawCache.end());
+                    rawBuf.push_back('\0'); 
+                }
+
+                // area alta 6 righe, larga quanto la finestra
+                ImGui::InputTextMultiline(
+                    "##rawresp",
+                    rawBuf.data(),
+                    rawBuf.size(),
+                    ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 6),
+                    ImGuiInputTextFlags_ReadOnly
+                );
 
                 ImGui::Separator();
                 ImGui::Text("version 0.23");

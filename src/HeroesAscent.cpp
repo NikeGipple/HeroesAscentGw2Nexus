@@ -12,6 +12,7 @@
 #include "Globals.h"
 #include <ArcIntegration.h>
 #include "PlayerEventType.h"
+#include "Logger.h"
 
 using namespace ImGui;
 
@@ -161,6 +162,26 @@ extern "C" __declspec(dllexport) AddonDefinition* GetAddonDef() {
             if (!APIDefs) return;
             if (!RTAPIData)
                 RTAPIData = (RealTimeData*)APIDefs->DataLink.Get(DL_RTAPI);
+
+            if (APIDefs) {
+                // Toggle probe
+                if (GetAsyncKeyState(VK_F7) & 1) {
+                    bool en = !ProbeIsEnabled();
+                    ProbeSetEnabled(en);
+                    APIDefs->Log(ELogLevel_INFO, "TOME-PROBE", en ? "[PROBE] enabled" : "[PROBE] disabled");
+                }
+
+                // Debug keys solo se probe ON
+                if (ProbeIsEnabled()) {
+                    if (GetAsyncKeyState(VK_F9) & 1) {
+                        ProbeClear();
+                        APIDefs->Log(ELogLevel_INFO, "TOME-PROBE", "[MANUAL] ProbeClear()");
+                    }
+                    if (GetAsyncKeyState(VK_F8) & 1) {
+                        ProbeDump("[MANUAL] F8 dump");
+                    }
+                }
+            }
 
             static uint64_t lastTick = 0;
             static RealTimeData lastSnapshot{};

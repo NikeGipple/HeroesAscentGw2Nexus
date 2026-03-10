@@ -8,6 +8,7 @@
 #include "Logger.h"
 #include <Windows.h>
 
+
 extern AddonAPI* APIDefs;
 
 void RawDump(void* data, const char* area)
@@ -58,6 +59,48 @@ void OnArcCombat(void* data, const char* sourceArea) {
     EvCombatData* e = static_cast<EvCombatData*>(data);
     if (!e || !e->ev) return;
 
+    // Uso del tomo di livello
+    static constexpr uint32_t kTomeSkillId = 1080;
+
+    // anti-duplicati
+    static uint64_t gLastTomeSentMs = 0;
+
+    const bool srcSelf = (e->src && e->src->self == 1);
+    const uint8_t sc = e->ev->is_statechange;
+    const uint8_t act = e->ev->is_activation;
+    const uint32_t sid = e->ev->skillid;
+    const uint64_t nowMs = GetTickCount64();
+
+    // timestamp per monitorare il flusso di eventi (SOLO se probeOn)
+    const bool probeOn = ProbeIsEnabled();
+
+    // timestamp per monitorare il flusso di eventi (solo se probeOn)
+    static uint64_t lastPrint = 0;
+    static uint32_t evCount = 0;
+    static bool prevProbeOn = false;
+
+    if (probeOn) {
+        if (!prevProbeOn) {       // appena riattivato
+            lastPrint = nowMs;
+            evCount = 0;
+        }
+
+        evCount++;
+
+        if (nowMs - lastPrint > 2000) {
+            lastPrint = nowMs;
+            char msg[128];
+            sprintf_s(msg, sizeof(msg), "[ARCDPS] events in last 2s: %u", evCount);
+            APIDefs->Log(ELogLevel_INFO, "ArcIntegration", msg);
+            evCount = 0;
+        }
+
+        ProbePush(e, sourceArea);
+        ProbeAutoDumpIfInteresting(e, sourceArea);
+    }
+
+    prevProbeOn = probeOn;
+
     // === Log SOLO quando il soggetto al 50% è il TUO personaggio ===
     if (e->ev->is_fifty == 1 && e->dst && e->dst->self == 1) {
 
@@ -75,7 +118,6 @@ void OnArcCombat(void* data, const char* sourceArea) {
 
         //APIDefs->Log(ELogLevel_INFO, "ArcIntegration", msg);
     }
-
 
 
     // === LOG RAW LEGGIBILE ===
@@ -101,6 +143,22 @@ void OnArcCombat(void* data, const char* sourceArea) {
 
     //    APIDefs->Log(ELogLevel_INFO, "ArcIntegration", msg);
     //}
+
+
+    // ============================================================
+    // TOME DETECTION (skillid 1080)
+    // ============================================================
+
+    if (srcSelf &&
+        sc == 0 &&
+        act == 1 /*START*/ &&
+        sid == kTomeSkillId)
+    {
+        if (nowMs - gLastTomeSentMs > 1500) {
+            SendPlayerUpdate(PlayerEventType::TOME_USED, kTomeSkillId, "Tome");
+            gLastTomeSentMs = nowMs;
+        }
+    }
 
     // === Rilevazione Skill 6 (cura attiva) ===
     if (e->src && e->src->self == 1) {

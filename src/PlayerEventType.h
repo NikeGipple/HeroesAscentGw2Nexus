@@ -12,7 +12,8 @@
         LEVEL_UP,
         BUFF_APPLIED,
         GROUP,
-        GLIDING
+        GLIDING,
+        TOME_USED
     };
 
     inline const char* ToString(PlayerEventType type) {
@@ -29,6 +30,7 @@
         case PlayerEventType::BUFF_APPLIED:     return "BUFF_APPLIED";
         case PlayerEventType::GROUP:            return "GROUP";
         case PlayerEventType::GLIDING:          return "GLIDING";
+		case PlayerEventType::TOME_USED:        return "TOME_USED";
         default:                                return "UNKNOWN";
         }
     }

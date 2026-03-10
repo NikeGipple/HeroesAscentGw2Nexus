@@ -1,12 +1,15 @@
-﻿// Localization.cpp
+﻿// Logger.cpp
 
-#include "logger.h"
+#include "Logger.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
 #include <unordered_map>
 #include <chrono>
-
+#include <deque>
+#include <mutex>
+#include <atomic>
+#include <Windows.h>
 
 // ============================================================
 // ENUM DECODERS
@@ -177,6 +180,7 @@ void LogKillCompact(const KillTrack& info)
 
 void LogArcEvent(EvCombatData* e, const char* sourceArea)
 {
+    if (!APIDefs) return;
     if (!e || !e->ev) return;
 
     char out[32768];
@@ -256,9 +260,9 @@ void LogArcEvent(EvCombatData* e, const char* sourceArea)
     APIDefs->Log(ELogLevel_DEBUG, "ArcIntegration", out);
 }
 
-
 void LogArcEventCompact(EvCombatData* e, const char* area)
 {
+    if (!APIDefs) return;
     if (!e || !e->ev) return;
 
     uint64_t srcAgent = e->ev->src_agent;
@@ -376,9 +380,9 @@ void LogArcEventCompact(EvCombatData* e, const char* area)
     }
 }
 
-
 void LogArcEventUltraCompact(EvCombatData* e, const char* area)
 {
+    if (!APIDefs) return;
     if (!e || !e->ev) return;
 
     uint64_t dstAgent = e->ev->dst_agent;
@@ -404,3 +408,244 @@ void LogArcEventUltraCompact(EvCombatData* e, const char* area)
         LogKillCompact(t);
     }
 }
+
+// ============================================================
+// PROBE (WIDE DEBUG)
+// ============================================================
+
+static std::atomic<bool> gProbeEnabled{ false };
+static std::atomic<uint64_t> gProbeSeen{ 0 };
+static std::atomic<uint64_t> gProbeStored{ 0 };
+static std::atomic<uint64_t> gProbeFiltered{ 0 };
+
+struct ArcProbeEvt {
+    uint64_t t_ms;          // GetTickCount64
+    uint64_t arc_time;      // e->ev->time
+    char area[8];
+
+    uint8_t statechange;
+    uint8_t activation;
+    uint8_t buff;
+    uint8_t buffremove;
+    uint8_t result;
+
+    uint32_t skillid;
+    int32_t value;
+    int32_t buff_dmg;
+    uint32_t overstack;
+
+    uint64_t src_agent;
+    uint64_t dst_agent;
+
+    uint8_t src_self;
+    uint8_t dst_self;
+
+    char src_name[64];
+    char dst_name[64];
+    char skillname[96];
+};
+
+static std::deque<ArcProbeEvt> gProbe;
+static std::mutex gProbeMx;
+
+static uint32_t gProbeWindowMs = 20000; // 20s (wide)
+static size_t   gProbeMaxEvents = 5000;  // max righe (wide)
+
+void ProbeSetEnabled(bool enabled) {
+    gProbeEnabled.store(enabled, std::memory_order_relaxed);
+}
+
+bool ProbeIsEnabled() {
+    return gProbeEnabled.load(std::memory_order_relaxed);
+}
+
+void ProbeSetWindowMs(uint32_t ms) { gProbeWindowMs = (ms < 1000 ? 1000 : ms); }
+void ProbeSetMaxEvents(size_t n) { gProbeMaxEvents = (n < 200 ? 200 : n); }
+
+void ProbeClear()
+{
+    std::scoped_lock lk(gProbeMx);
+    gProbe.clear();
+    gProbeSeen.store(0, std::memory_order_relaxed);
+    gProbeStored.store(0, std::memory_order_relaxed);
+    gProbeFiltered.store(0, std::memory_order_relaxed);
+}
+
+static inline void SafeCopy(char* dst, size_t dstSz, const char* src)
+{
+    if (!dst || dstSz == 0) return;
+    dst[0] = '\0';
+    if (!src) return;
+    strncpy_s(dst, dstSz, src, _TRUNCATE);
+}
+
+void ProbePush(EvCombatData* e, const char* area)
+{
+    if (!ProbeIsEnabled()) return;
+    if (!e || !e->ev) return;
+
+    gProbeSeen++;
+
+    const bool srcSelf = (e->src && e->src->self == 1);
+    const bool dstSelf = (e->dst && e->dst->self == 1);
+
+    const uint8_t sc = e->ev->is_statechange;
+    const uint8_t act = e->ev->is_activation;
+
+    const bool isActivation = (sc == 0 && act != 0);
+    const bool isState = (sc != 0);
+    const bool isBuffEvt = (e->ev->buff == 1) || (e->ev->is_buffremove != 0);
+
+    // WIDE DEBUG: per ora tieni tutto
+    const bool interesting = true;
+
+    // (quando vorrai tornare a filtrare, rimetti questo)
+    /*
+    const bool interesting =
+        isState ||
+        isActivation ||
+        (isBuffEvt && (srcSelf || dstSelf)) ||
+        (e->ev->result != 0) ||
+        (srcSelf || dstSelf);
+    */
+
+    if (!interesting) {
+        gProbeFiltered++;
+        return;
+    }
+
+    gProbeStored++;
+
+    ArcProbeEvt pe{};
+    pe.t_ms = GetTickCount64();
+    pe.arc_time = e->ev->time;
+    SafeCopy(pe.area, sizeof(pe.area), area ? area : "");
+
+    pe.statechange = sc;
+    pe.activation = act;
+    pe.buff = e->ev->buff;
+    pe.buffremove = e->ev->is_buffremove;
+    pe.result = e->ev->result;
+
+    pe.skillid = e->ev->skillid;
+    pe.value = e->ev->value;
+    pe.buff_dmg = e->ev->buff_dmg;
+    pe.overstack = e->ev->overstack_value;
+
+    pe.src_agent = e->ev->src_agent;
+    pe.dst_agent = e->ev->dst_agent;
+
+    pe.src_self = (uint8_t)(srcSelf ? 1 : 0);
+    pe.dst_self = (uint8_t)(dstSelf ? 1 : 0);
+
+    SafeCopy(pe.src_name, sizeof(pe.src_name), (e->src && e->src->name) ? e->src->name : "");
+    SafeCopy(pe.dst_name, sizeof(pe.dst_name), (e->dst && e->dst->name) ? e->dst->name : "");
+    SafeCopy(pe.skillname, sizeof(pe.skillname), (e->skillname && e->skillname[0]) ? e->skillname : "");
+
+    std::scoped_lock lk(gProbeMx);
+    gProbe.push_back(pe);
+
+    while (gProbe.size() > gProbeMaxEvents)
+        gProbe.pop_front();
+
+    while (!gProbe.empty() && (pe.t_ms - gProbe.front().t_ms) > gProbeWindowMs)
+        gProbe.pop_front();
+}
+void ProbeDump(const char* reason)
+{
+    if (!APIDefs) return;
+
+    std::scoped_lock lk(gProbeMx);
+
+    APIDefs->Log(ELogLevel_WARNING, "TOME-PROBE", "================ DUMP START ================");
+    APIDefs->Log(ELogLevel_WARNING, "TOME-PROBE", (reason ? reason : "(no reason)"));
+
+    char stats[256];
+    sprintf_s(stats, sizeof(stats),
+        "stats: seen=%llu stored=%llu filtered=%llu buf=%zu window=%ums max=%zu",
+        (unsigned long long)gProbeSeen.load(),
+        (unsigned long long)gProbeStored.load(),
+        (unsigned long long)gProbeFiltered.load(),
+        gProbe.size(),
+        gProbeWindowMs,
+        gProbeMaxEvents
+    );
+    APIDefs->Log(ELogLevel_WARNING, "TOME-PROBE", stats);
+
+    for (auto& x : gProbe)
+    {
+        char line[900];
+        sprintf_s(line, sizeof(line),
+            "[%s] t=%llu arc=%llu sc=%u(%s) act=%u(%s) buff=%u br=%u(%s) res=%u "
+            "skill=%u \"%s\" val=%d bd=%d ov=%u "
+            "src=%llu self=%u \"%s\" dst=%llu self=%u \"%s\"",
+            x.area,
+            (unsigned long long)x.t_ms,
+            (unsigned long long)x.arc_time,
+            x.statechange, DecodeStateChange(x.statechange),
+            x.activation, DecodeActivation(x.activation),
+            x.buff,
+            x.buffremove, DecodeBuffRemove(x.buffremove),
+            x.result,
+            x.skillid, x.skillname,
+            (int)x.value, (int)x.buff_dmg, x.overstack,
+            (unsigned long long)x.src_agent, x.src_self, x.src_name,
+            (unsigned long long)x.dst_agent, x.dst_self, x.dst_name
+        );
+
+        APIDefs->Log(ELogLevel_WARNING, "TOME-PROBE", line);
+    }
+
+    APIDefs->Log(ELogLevel_WARNING, "TOME-PROBE", "================= DUMP END =================");
+}
+void ProbeAutoDumpIfInteresting(EvCombatData* e, const char* area)
+{
+    if (!ProbeIsEnabled()) return;
+    if (!APIDefs) return;
+    if (!e || !e->ev) return;
+
+    static uint64_t lastDumpMs = 0;
+    const uint64_t nowMs = GetTickCount64();
+    if (nowMs - lastDumpMs < 2000) return;
+
+    const bool srcSelf = (e->src && e->src->self == 1);
+
+    const uint8_t sc = e->ev->is_statechange;
+    const uint8_t act = e->ev->is_activation;
+
+    // Trigger “sensati” per non spam:
+    // - REWARD (17)
+    // - activation START (1) dal player
+    if (sc == 17 /*REWARD*/)
+    {
+        char reason[256];
+        sprintf_s(reason, sizeof(reason),
+            "[AUTO][REWARD] area=%s skillid=%u name=%s val=%d bd=%d",
+            area ? area : "",
+            e->ev->skillid,
+            (e->skillname ? e->skillname : ""),
+            (int)e->ev->value,
+            (int)e->ev->buff_dmg
+        );
+        lastDumpMs = nowMs;
+        ProbeDump(reason);
+        return;
+    }
+
+    if (sc == 0 && act == 1 /*START*/ && srcSelf)
+    {
+        char reason[256];
+        sprintf_s(reason, sizeof(reason),
+            "[AUTO][ACT_START] area=%s skillid=%u name=%s",
+            area ? area : "",
+            e->ev->skillid,
+            (e->skillname ? e->skillname : "")
+        );
+        lastDumpMs = nowMs;
+        ProbeDump(reason);
+        return;
+    }
+}
+
+
+

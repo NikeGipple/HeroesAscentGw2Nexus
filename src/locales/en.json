@@ -58,5 +58,4 @@
   "ui.character_not_found_title": "Character not found",
   "ui.character_not_found_desc": "This character is not participating in the competition because it was not registered from the start of its adventure",
   "ui.registration_guild_membership_not_allowed": "Your account belongs to a guild. To join the event you must leave all guilds",
-  "test": "test"
 }

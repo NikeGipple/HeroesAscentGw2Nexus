@@ -206,10 +206,10 @@
     <ClCompile Include="UIColors.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\locales\en.json" />
-    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\locales\it.json" />
-    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\violations\en.json" />
-    <None Include="C:\Program Files\Guild Wars 2\addons\HeroesAscentGw2Nexus\violations\it.json" />
+    <None Include="locales\en.json" />
+    <None Include="locales\it.json" />
+    <None Include="violations\en.json" />
+    <None Include="violations\it.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

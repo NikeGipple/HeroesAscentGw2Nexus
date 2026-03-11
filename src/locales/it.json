@@ -1,11 +1,62 @@
 {
+  "ui.welcome_title": "Benvenuto alla competizione 'Heroes Ascent'' per Guild Wars 2",
+  "ui.registration_welcome_charselect": "Per registrarti a Heroes Ascent, incolla la tua API key di Guild Wars 2 (con permessi: account e progression) nel riquadro Registrazione a sinistra, poi premi Registrati.",
+  "ui.skip": "Non adesso. Salta la registrazione",
+
+  "ui.language": "Lingua dell’interfaccia",
   "ui.character": "Personaggio",
   "ui.status": "Stato",
+  "ui.server_online": "Il server dell'Heroes Ascent è online",
+  "ui.server_offline": "Server offline",
   "ui.map": "Mappa",
   "ui.position": "Posizione",
   "ui.not_available": "RTAPI non disponibile o non attiva...",
+  "ui.server_raw_response": "Risposta grezza del server:",
+  "ui.checking_server": "Controllo dello stato del server...",
+
   "ui.state.normal": "NORMALE",
   "ui.state.downed": "A TERRA (DOWNED)",
   "ui.state.dead": "MORTO",
-  "ui.state.combat": "IN COMBATTIMENTO"
+  "ui.state.combat": "IN COMBATTIMENTO",
+
+  "ui.violation_detected": "Violazione rilevata",
+  "ui.rules_respected": "Regole rispettate",
+  "ui.unknown_violation": "Codice di violazione sconosciuto",
+
+  "ui.registration_title": "Iscrizione a Heroes Ascent",
+  "ui.registration_button": "Iscriviti",
+  "ui.registration_token": "Token",
+  "ui.registration_placeholder": "Inserisci la tua chiave API",
+  "ui.registration_sending": "Invio in corso...",
+
+  "ui.registration_success": "Registrazione completata!",
+  "ui.registration_failed": "Registrazione fallita!",
+  "ui.registration_unreachable": "Server non raggiungibile!",
+  "ui.registration_no_response": "Nessuna risposta dal server",
+  "ui.registration_already": "Account già registrato",
+
+  "ui.registration_missing_key": "Chiave API mancante",
+  "ui.registration_required": "Registrazione richiesta — il tuo token non è più valido",
+  "ui.registration_invalid": "Token dell'account non valido o scaduto",
+  "ui.registration_revalidate": "Verifica del token dell'account in corso...",
+  "ui.registration_gw2_invalid_api_key": "La chiave API fornita non è valida",
+  "ui.registration_missing_account_name": "Nome account mancante",
+  "ui.registration_invalid_permissions": "Chiave API non valida: mancano i permessi richiesti (account, progression)",
+  "ui.registration_account_mismatch": "Il nome account non corrisponde al proprietario della chiave API",
+  "ui.registration_too_many_ap": "Account non idoneo: supera il limite di Achievement Points consentiti",
+  "ui.registration_gw2_api_error": "Servizi Guild Wars 2 temporaneamente non disponibili",
+  "ui.registration_gw2_api_unavailable": "Le API di Guild Wars 2 non rispondono",
+
+  "ui.registration_registered": "Account registrato con successo",
+  "ui.registration_already_registered": "Account già registrato",
+  "ui.character_status": "Stato personaggio",
+  "ui.character_disqualified": "Personaggio squalificato",
+  "ui.character_valid": "Personaggio qualificato",
+  "ui.character_not_found_title": "Personaggio non trovato",
+  "ui.character_not_found_desc": "Questo personaggio non partecipa alla competizione perché non è stato registrato dall’inizio dell’avventura",
+
+  "ui.unknown_violation_title": "Violazione sconosciuta",
+  "ui.unknown_violation_desc": "Questa violazione non è riconosciuta dal sistema.",
+  "ui.registration_guild_membership_not_allowed": "L'account appartiene a una gilda. Per partecipare all’evento devi uscire da tutte le gilde."
+
 }

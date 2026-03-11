@@ -1,11 +1,62 @@
 {
+
+  "ui.welcome_title": "Welcome to 'Heroes Ascent' Guild Wars 2 Contest!",
+  "ui.registration_welcome_charselect": "To register for Heroes Ascent, paste your Guild Wars 2 API key (with permissions: account and progression) in the Registration box on the left, then click Register.",
+  "ui.skip": "Not now. Skip registration",
+
+  "ui.language": "Interface language",
   "ui.character": "Character",
   "ui.status": "Status",
+  "ui.server_online": "Heroes Ascent server is online",
+  "ui.server_offline": "Server offline",
   "ui.map": "Map",
   "ui.position": "Position",
   "ui.not_available": "RTAPI not available or inactive...",
+  "ui.checking_server": "Checking server status...",
+  "ui.server_raw_response": "Server raw response:",
+
   "ui.state.normal": "NORMAL",
   "ui.state.downed": "DOWNED",
   "ui.state.dead": "DEAD",
-  "ui.state.combat": "IN COMBAT"
+  "ui.state.combat": "IN COMBAT",
+
+  "ui.violation_detected": "Violation detected",
+  "ui.rules_respected": "Rules respected",
+  "ui.unknown_violation": "Unknown violation code",
+
+  "ui.registration_title": "Heroes Ascent Registration",
+  "ui.registration_button": "Register",
+  "ui.registration_token": "Token",
+  "ui.registration_placeholder": "Enter your API key",
+  "ui.registration_sending": "Sending...",
+
+  "ui.registration_success": "Registration successful!",
+  "ui.registration_failed": "Registration failed!",
+  "ui.registration_unreachable": "Server unreachable!",
+  "ui.registration_no_response": "No response from server",
+  "ui.registration_already": "Account already registered",
+
+  "ui.registration_missing_key": "Missing API key",
+  "ui.registration_required": "Registration required — your token is no longer valid",
+  "ui.registration_invalid": "Invalid or expired account token",
+  "ui.registration_revalidate": "Revalidating account token...",
+  "ui.registration_gw2_invalid_api_key": "The provided API key is invalid",
+  "ui.registration_missing_account_name": "Missing account name",
+  "ui.registration_invalid_permissions": "Invalid API key permissions (requires 'account' and 'progression')",
+  "ui.registration_account_mismatch": "Account name does not match API key owner",
+  "ui.registration_too_many_ap": "Account exceeds the allowed Achievement Points limit",
+  "ui.registration_gw2_api_error": "Guild Wars 2 services temporarily unavailable",
+  "ui.registration_gw2_api_unavailable": "Guild Wars 2 API not responding",
+
+  "ui.registration_registered": "Account registered successfully",
+  "ui.registration_already_registered": "Account already registered",
+  "ui.character_status": "Character status",
+  "ui.character_disqualified": "Character is disqualified",
+  "ui.character_valid": "Character qualified",
+  "ui.unknown_violation_title": "Unknown violation",
+  "ui.unknown_violation_desc": "This violation is not recognized by the system.",
+  "ui.character_not_found_title": "Character not found",
+  "ui.character_not_found_desc": "This character is not participating in the competition because it was not registered from the start of its adventure",
+  "ui.registration_guild_membership_not_allowed": "Your account belongs to a guild. To join the event you must leave all guilds",
+  "test": "test"
 }

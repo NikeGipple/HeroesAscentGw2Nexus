@@ -1,37 +1,76 @@
 {
-  "RULE_FOOD_001": {
-    "category": "Gioco",
-    "title": "Cibo o Potenziamento Vietato",
-    "description": "Il giocatore ha consumato cibo o potenziamenti non consentiti durante la competizione."
+
+  "MAP_CHANGED_INVALID": {
+    "category": "Movement",
+    "title": "Cambio Mappa Non Valido",
+    "description": "Il personaggio è entrato in una mappa non permessa dal regolamento della competizione."
   },
-  "RULE_MOUNT_002": {
-    "category": "Movimento",
-    "title": "Uso di Cavalcatura",
-    "description": "Il giocatore ha utilizzato una cavalcatura, vietata dal regolamento dell'evento."
+
+  "MOUNT_CHANGED": {
+    "category": "Movement",
+    "title": "Utilizzo della Mount Rilevato",
+    "description": "Il personaggio è salito su una mount, azione non consentita dal regolamento della competizione."
   },
-  "RULE_GROUP_003": {
-    "category": "Sociale",
-    "title": "Partecipazione a Party o Squad",
-    "description": "Il giocatore si è unito o ha interagito con un gruppo, violando la regola del gioco in solitaria."
+
+  "HEALING_USED": {
+    "category": "Gameplay",
+    "title": "Abilità di Cura Usata",
+    "description": "Il personaggio ha utilizzato una abilità di cura, vietata dal regolamento della competizione."
   },
-  "RULE_HEAL_004": {
-    "category": "Combattimento",
-    "title": "Uso di Abilità di Cura",
-    "description": "Il giocatore ha utilizzato o equipaggiato abilità di cura, non consentite durante la competizione."
+
+  "BUFF_FORBIDDEN_FOOD": {
+    "category": "Gameplay",
+    "title": "Cibo Non Consentito",
+    "description": "Il personaggio ha consumato cibo (Nourishment), vietato dal regolamento."
   },
-  "RULE_BUFF_005": {
-    "category": "Combattimento",
-    "title": "Bonus Esperienza Rilevato",
-    "description": "È stato rilevato un booster di esperienza o un effetto simile sul personaggio."
+
+  "BUFF_FORBIDDEN_ENHANCEMENT": {
+    "category": "Gameplay",
+    "title": "Enhancement Non Consentito",
+    "description": "Il personaggio ha consumato un Enhancement, vietato dal regolamento."
   },
-  "RULE_GEAR_006": {
-    "category": "Equipaggiamento",
-    "title": "Equipaggiamento Non Valido",
-    "description": "Il giocatore ha equipaggiato armature o accessori non permessi dal regolamento."
+
+  "BUFF_FORBIDDEN_REINFORCED": {
+    "category": "Gameplay",
+    "title": "Reinforced Armor",
+    "description": "Il personaggio ha ottenuto Reinforced Armor, effetto vietato dal regolamento."
   },
-  "RULE_MISC_999": {
-    "category": "Generale",
-    "title": "Violazione Non Specificata",
-    "description": "È stata rilevata una violazione del regolamento non specificata in dettaglio."
+
+  "BUILD_FORBIDDEN_TRAIT": {
+    "category": "Build",
+    "title": "Tratto Non Consentito",
+    "description": "Il personaggio ha selezionato un tratto espressamente vietato dal regolamento."
+  },
+
+  "BUILD_FORBIDDEN_SKILL": {
+    "category": "Build",
+    "title": "Skill Non Consentita",
+    "description": "Il personaggio ha equipaggiato o utilizzato una skill vietata dal regolamento."
+  },
+
+
+  "EQUIPMENT_INVALID": {
+    "category": "Build",
+    "title": "Equipaggiamento Non Consentito",
+    "description": "Il personaggio ha equipaggiato un oggetto non consentito dal regolamento del concorso."
+  },
+
+  "GROUP": {
+    "category": "Gruppo",
+    "title": "Gruppo Rilevato",
+    "description": "Il personaggio fa o faceva parte di un gruppo, cosa non permessa dal regolamento della competizione."
+  },
+
+  "DEAD": {
+    "category": "Gameplay",
+    "title": "Personaggio Morto",
+    "description": "Il personaggio è morto. La morte comporta squalifica immediata."
+  },
+
+  "DISQUALIFIED_GENERIC": {
+    "category": "Generico",
+    "title": "Personaggio squalificato",
+    "description": "Il personaggio è stato squalificato"
   }
+
 }

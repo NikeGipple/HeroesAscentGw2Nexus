@@ -1,37 +1,76 @@
 {
-  "RULE_FOOD_001": {
-    "category": "Gameplay",
-    "title": "Forbidden Food or Enhancement",
-    "description": "The player has consumed food or enhancement items, which are not allowed during the competition."
-  },
-  "RULE_MOUNT_002": {
+
+  "MAP_CHANGED_INVALID": {
     "category": "Movement",
-    "title": "Mount Usage",
-    "description": "The player used a mount, which is explicitly forbidden by the event rules."
+    "title": "Invalid Map Change",
+    "description": "The character entered a map that is not allowed by the competition rules."
   },
-  "RULE_GROUP_003": {
-    "category": "Social",
-    "title": "Party or Squad Participation",
-    "description": "The player joined or interacted with a party or squad, violating the solo play requirement."
+
+  "MOUNT_CHANGED": {
+    "category": "Movement",
+    "title": "Mount Usage Detected",
+    "description": "The character has mounted, which is not allowed under the competition rules."
   },
-  "RULE_HEAL_004": {
-    "category": "Combat",
-    "title": "Healing Skill Usage",
-    "description": "The player used or equipped healing skills, which are not allowed during the competition."
+
+  "HEALING_USED": {
+    "category": "Gameplay",
+    "title": "Healing Skill Used",
+    "description": "The character used a healing skill, which is forbidden by the competition rules."
   },
-  "RULE_BUFF_005": {
-    "category": "Combat",
-    "title": "Experience Boost Detected",
-    "description": "An experience booster or related effect was detected on the character."
+
+  "BUFF_FORBIDDEN_FOOD": {
+    "category": "Gameplay",
+    "title": "Forbidden Food",
+    "description": "The character consumed Nourishment (Food), which is forbidden by the competition rules."
   },
-  "RULE_GEAR_006": {
-    "category": "Equipment",
-    "title": "Invalid Equipment",
-    "description": "The player equipped armor or accessories that are not permitted under competition rules."
+
+  "BUFF_FORBIDDEN_ENHANCEMENT": {
+    "category": "Gameplay",
+    "title": "Forbidden Enhancement",
+    "description": "The character consumed an Enhancement item, which is forbidden by the competition rules."
   },
-  "RULE_MISC_999": {
-    "category": "General",
-    "title": "Unspecified Violation",
-    "description": "A rule violation was detected but could not be specifically categorized."
+
+  "BUFF_FORBIDDEN_REINFORCED": {
+    "category": "Gameplay",
+    "title": "Reinforced Armor",
+    "description": "The character gained Reinforced Armor, which is forbidden by the competition rules."
+  },
+
+  "BUILD_FORBIDDEN_TRAIT": {
+    "category": "Build",
+    "title": "Forbidden Trait Detected",
+    "description": "The character selected a trait that is explicitly forbidden by the competition rules."
+  },
+
+  "BUILD_FORBIDDEN_SKILL": {
+    "category": "Build",
+    "title": "Forbidden Skill Detected",
+    "description": "The character equipped or used a skill that is forbidden by the competition rules."
+  },
+
+  "EQUIPMENT_INVALID": {
+    "category": "Build",
+    "title": "Forbidden Equipment Detected",
+    "description": "The character equipped an item that is not allowed by the competition rules."
+  },
+
+  "GROUP": {
+    "category": "Group",
+    "title": "Group Detected",
+    "description": "The character is or was part of a group, which is not permitted under the competition rules."
+  },
+
+  "DEAD": {
+    "category": "Gameplay",
+    "title": "Character Death",
+    "description": "The character has died. Death results in immediate disqualification."
+  },
+
+  "DISQUALIFIED_GENERIC": {
+    "category": "Generic",
+    "title": "Character Disqualified",
+    "description": "The character is disqualified"
   }
+
+
 }
